@@ -1,0 +1,17 @@
+[project]
+name = "caseathon2026"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "lrbailey", email = "lrbailey@wm.edu" }
+]
+requires-python = ">=3.13"
+dependencies = []
+
+[project.scripts]
+caseathon2026 = "caseathon2026:main"
+
+[build-system]
+requires = ["uv_build>=0.12.19,<0.13.0"]
+build-backend = "uv_build"

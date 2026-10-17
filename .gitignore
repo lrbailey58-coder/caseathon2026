@@ -1,0 +1,9 @@
+# Virtual environments
+.venv/
+
+# Python caches
+__pycache__/
+*.pyc
+
+# uv cache (if configured locally)
+.uv/
