@@ -45,6 +45,11 @@ export function MaritimeMap({ scenario }: MaritimeMapProps) {
   const unmitEndPos = unmitigated_prediction_track[unmitigated_prediction_track.length - 1]
   const mitEndPos = mitigated_prediction_track[mitigated_prediction_track.length - 1]
 
+  const cartoApiKey = import.meta.env.VITE_CARTO_API_KEY?.trim()
+  const cartoTileUrl = cartoApiKey
+    ? `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=${encodeURIComponent(cartoApiKey)}`
+    : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+
   return (
     <div className="relative h-full w-full bg-slate-950 overflow-hidden select-none">
       {/* Top-Left Tactical HUD Overlay */}
@@ -86,8 +91,9 @@ export function MaritimeMap({ scenario }: MaritimeMapProps) {
         zoomControl={true}
       >
         <TileLayer
+          key={cartoTileUrl}
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          url={cartoTileUrl}
         />
 
         {/* Shipping Channel Lateral Boundaries */}

@@ -17,3 +17,11 @@ frontend/.vite/
 # DuckDB & large data artifacts
 *.duckdb
 *.duckdb.wal
+
+# Environment files
+.env
+.env.*
+!.env.example
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
