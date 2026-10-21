@@ -67,3 +67,27 @@ export interface HitlOverrideResponse {
   total_interventions_logged: number
   avg_human_review_s: number
 }
+
+export interface MatrixRunEntry {
+  run_id: number
+  condition: ConditionType
+  condition_label: string
+  mitigated: boolean
+  defense_label: string
+  window: number
+  window_label: string
+  displacement_mae_m: number
+  tail_95_error_m: number
+  data_discarded_pct: number
+  decisions_deferred_pct: number
+  recovery_gain_pct: number
+  model_compute_latency_ms: number
+}
+
+export interface MatrixSummaryData {
+  window: number
+  window_label: string
+  avg_human_review_s: number
+  runs: MatrixRunEntry[]
+}
+

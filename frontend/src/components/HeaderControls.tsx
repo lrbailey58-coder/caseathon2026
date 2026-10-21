@@ -1,4 +1,11 @@
-import { Activity, Anchor, Clock, ShieldAlert, ShieldCheck } from 'lucide-react'
+import {
+  Activity,
+  Anchor,
+  Clock,
+  ShieldAlert,
+  ShieldCheck,
+  Table2,
+} from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import type { ConditionType } from '@/types/maritime'
@@ -12,6 +19,7 @@ interface HeaderControlsProps {
   onWindowChange: (w: number) => void
   windowLabel: string
   apiOnline: boolean
+  onOpenMatrix: () => void
 }
 
 const CONDITIONS: { value: ConditionType; label: string; short: string }[] = [
@@ -27,7 +35,7 @@ const WINDOWS = [
   { id: 3, tag: 'W3', desc: 'Mod Drift' },
   { id: 4, tag: 'W4', desc: 'Heavy Drift' },
   { id: 5, tag: 'W5', desc: 'Severe Drift' },
-  { id: 6, tag: 'W6', desc: 'Unseen Test' },
+  { id: 6, tag: 'W6', desc: 'Unseen Test Period' },
 ]
 
 export function HeaderControls({
@@ -39,6 +47,7 @@ export function HeaderControls({
   onWindowChange,
   windowLabel,
   apiOnline,
+  onOpenMatrix,
 }: HeaderControlsProps) {
   return (
     <header className="w-full border-b border-slate-800 bg-slate-900/95 px-4 py-2.5 shadow-md z-20 shrink-0">
@@ -55,7 +64,7 @@ export function HeaderControls({
               </h1>
               <Badge variant={apiOnline ? 'emerald' : 'amber'} className="gap-1">
                 <Activity className="h-3 w-3" />
-                {apiOnline ? 'API LIVE' : 'LOCAL SIM FALLBACK'}
+                {apiOnline ? 'DUCKDB LIVE' : 'LOCAL SIM FALLBACK'}
               </Badge>
             </div>
             <p className="text-[11px] text-slate-400 font-mono">
@@ -139,7 +148,9 @@ export function HeaderControls({
                     'flex-1 rounded py-0.5 text-[11px] font-mono font-semibold transition-colors cursor-pointer',
                     window === w.id
                       ? 'bg-cyan-500 text-slate-950 shadow-sm'
-                      : 'bg-slate-800/80 text-slate-400 hover:bg-slate-700 hover:text-slate-200',
+                      : w.id === 6
+                        ? 'bg-amber-500/15 text-amber-300 border border-amber-500/40 hover:bg-amber-500/25'
+                        : 'bg-slate-800/80 text-slate-400 hover:bg-slate-700 hover:text-slate-200',
                   )}
                 >
                   {w.tag}
@@ -147,6 +158,16 @@ export function HeaderControls({
               ))}
             </div>
           </div>
+
+          {/* 4. Full 4x2 Experiment Matrix Modal Button */}
+          <button
+            type="button"
+            onClick={onOpenMatrix}
+            className="flex items-center gap-1.5 rounded-md border border-cyan-500/50 bg-cyan-500/15 hover:bg-cyan-500/25 px-3 py-2 text-xs font-mono font-semibold text-cyan-300 shadow-sm transition-colors cursor-pointer"
+          >
+            <Table2 className="h-4 w-4 text-cyan-400" />
+            <span>View Full 4x2 Experiment Matrix</span>
+          </button>
         </div>
       </div>
     </header>
