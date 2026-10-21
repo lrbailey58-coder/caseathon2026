@@ -1,17 +1,36 @@
 from __future__ import annotations
 
+import json
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from typing import Literal
+from typing import AsyncIterator, Literal
 
-import duckdb
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+from backend.db import (
+    CONDITION_LABELS,
+    DB_PATH,
+    WINDOW_LABELS,
+    ConditionType,
+    build_explanation,
+    get_connection,
+    init_and_seed_db,
+)
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    init_and_seed_db()
+    yield
+
+
 app = FastAPI(
     title="NEPTUNE-GUARD // Maritime AIS Drift & Oversight API",
-    version="0.1.0",
-    description="Day 1 Tactical API for W&M Case-a-thon 2026: Unintentional Data Poisoning",
+    version="0.2.0",
+    description="Day 2 Tactical API for W&M Case-a-thon 2026: Unintentional Data Poisoning (DuckDB-backed)",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -24,68 +43,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-ConditionType = Literal["NOMINAL", "STALE", "LOW_QUALITY", "COMBINED"]
-
-# Base ground-truth voyage along Chesapeake Bay / Thimble Shoal Channel into Port of Virginia (Norfolk)
-BASE_GROUND_TRUTH_TRACK: list[tuple[float, float]] = [
-    (36.9520, -75.9850),
-    (36.9610, -76.0120),
-    (36.9705, -76.0410),
-    (36.9790, -76.0695),
-    (36.9865, -76.0980),
-    (36.9935, -76.1260),
-    (36.9995, -76.1540),
-    (37.0040, -76.1810),
-    (37.0065, -76.2080),
-    (37.0045, -76.2350),
-    (36.9985, -76.2610),
-    (36.9890, -76.2860),
-]
-
-# Deterministic progression tables across rolling windows W1 -> W6
-ERROR_PROGRESSION: dict[ConditionType, dict[str, list[float]]] = {
-    "NOMINAL": {
-        "unmitigated_mae": [42.0, 44.5, 43.8, 45.2, 46.1, 47.0],
-        "mitigated_mae": [41.5, 42.8, 42.1, 43.0, 43.6, 44.2],
-        "tail_95_unmitigated": [88.0, 92.0, 91.0, 94.5, 96.0, 98.0],
-        "tail_95_mitigated": [85.0, 88.0, 87.5, 89.0, 90.5, 91.5],
-        "corrupted_vol_pct": [2.0, 2.5, 2.2, 2.8, 3.0, 3.1],
-        "staleness_min": [1.2, 1.3, 1.2, 1.4, 1.4, 1.5],
-        "discarded_pct": [1.8, 2.1, 2.0, 2.4, 2.6, 2.8],
-        "deferred_pct": [2.0, 2.0, 2.5, 2.5, 3.0, 3.0],
-    },
-    "STALE": {
-        "unmitigated_mae": [43.0, 118.0, 215.0, 342.0, 468.0, 540.0],
-        "mitigated_mae": [42.0, 56.0, 68.0, 79.0, 88.0, 94.0],
-        "tail_95_unmitigated": [90.0, 245.0, 430.0, 685.0, 910.0, 1060.0],
-        "tail_95_mitigated": [86.0, 115.0, 138.0, 162.0, 179.0, 192.0],
-        "corrupted_vol_pct": [4.0, 18.0, 34.0, 51.0, 66.0, 72.0],
-        "staleness_min": [1.5, 6.8, 12.4, 17.5, 22.8, 25.4],
-        "discarded_pct": [3.2, 16.5, 31.0, 47.5, 61.2, 67.8],
-        "deferred_pct": [2.5, 6.0, 10.5, 14.0, 18.5, 21.0],
-    },
-    "LOW_QUALITY": {
-        "unmitigated_mae": [44.0, 134.0, 248.0, 389.0, 512.0, 595.0],
-        "mitigated_mae": [42.5, 59.0, 74.0, 86.0, 96.0, 105.0],
-        "tail_95_unmitigated": [92.0, 290.0, 520.0, 790.0, 1045.0, 1210.0],
-        "tail_95_mitigated": [88.0, 124.0, 152.0, 178.0, 198.0, 215.0],
-        "corrupted_vol_pct": [5.0, 20.0, 38.0, 55.0, 68.0, 75.0],
-        "staleness_min": [1.4, 2.1, 2.8, 3.4, 3.9, 4.2],
-        "discarded_pct": [4.1, 18.2, 35.4, 51.0, 63.8, 70.2],
-        "deferred_pct": [3.0, 7.5, 12.0, 16.5, 20.0, 23.5],
-    },
-    "COMBINED": {
-        "unmitigated_mae": [45.0, 165.0, 310.0, 495.0, 670.0, 785.0],
-        "mitigated_mae": [43.0, 64.0, 82.0, 98.0, 112.0, 124.0],
-        "tail_95_unmitigated": [95.0, 355.0, 640.0, 980.0, 1320.0, 1540.0],
-        "tail_95_mitigated": [89.0, 134.0, 170.0, 204.0, 230.0, 252.0],
-        "corrupted_vol_pct": [6.0, 24.0, 44.0, 62.0, 76.0, 82.0],
-        "staleness_min": [1.6, 8.2, 14.8, 19.6, 24.5, 27.8],
-        "discarded_pct": [5.0, 21.8, 40.5, 57.4, 71.0, 76.5],
-        "deferred_pct": [3.5, 9.0, 15.0, 21.5, 26.0, 29.5],
-    },
-}
 
 
 class WindowMetrics(BaseModel):
@@ -129,6 +86,29 @@ class ScenarioResponse(BaseModel):
     hitl_alert: HitlAlertPayload
 
 
+class MatrixRunEntry(BaseModel):
+    run_id: int
+    condition: ConditionType
+    condition_label: str
+    mitigated: bool
+    defense_label: str
+    window: int
+    window_label: str
+    displacement_mae_m: float
+    tail_95_error_m: float
+    data_discarded_pct: float
+    decisions_deferred_pct: float
+    recovery_gain_pct: float
+    model_compute_latency_ms: float
+
+
+class MatrixSummaryResponse(BaseModel):
+    window: int
+    window_label: str
+    avg_human_review_s: float
+    runs: list[MatrixRunEntry]
+
+
 class HitlOverrideRequest(BaseModel):
     mmsi: str = Field(..., examples=["367591240"])
     action: Literal["DEFER_TO_ANCHOR_KINEMATIC", "MANUAL_COURSE_OVERRIDE"]
@@ -151,88 +131,34 @@ class HitlOverrideResponse(BaseModel):
     avg_human_review_s: float
 
 
-# In-memory HITL intervention store for Day 1 demo
-HITL_AUDIT_LOG: list[HitlOverrideAuditEntry] = []
-
-
-def _build_tracks(
-    condition: ConditionType, window: int, mitigated: bool
-) -> tuple[
-    list[tuple[float, float]],
-    list[tuple[float, float]],
-    list[tuple[float, float]],
-    list[tuple[float, float]],
-]:
-    """Generate deterministic ground truth, unmitigated drift, mitigated recovery, and 95% cone."""
-    w_idx = window - 1  # 0..5
-    drift_scale = 0.0 if condition == "NOMINAL" else (w_idx / 5.0)
-
-    unmitigated_track: list[tuple[float, float]] = []
-    mitigated_track: list[tuple[float, float]] = []
-    upper_bound: list[tuple[float, float]] = []
-    lower_bound: list[tuple[float, float]] = []
-
-    for i, (lat, lon) in enumerate(BASE_GROUND_TRUTH_TRACK):
-        progress = max(0.0, (i - 2) / (len(BASE_GROUND_TRUTH_TRACK) - 3))
-        if i <= 2:
-            unmitigated_track.append((lat, lon))
-            mitigated_track.append((lat, lon))
-            continue
-
-        # Unmitigated drift pattern depends on poisoning mode
-        if condition == "NOMINAL":
-            d_lat = 0.0005 * progress
-            d_lon = 0.0004 * progress
-        elif condition == "STALE":
-            # Stale positions lag behind actual trajectory and pull vessel north-east out of the turn
-            d_lat = 0.0145 * drift_scale * (progress**1.35)
-            d_lon = 0.0180 * drift_scale * (progress**1.25)
-        elif condition == "LOW_QUALITY":
-            # Multipath jitter + SOG/COG spikes cause erratic southward shoal excursion
-            osc = 0.0035 if i % 2 == 0 else -0.0022
-            d_lat = (-0.0155 * (progress**1.3) + osc) * drift_scale
-            d_lon = 0.0110 * drift_scale * progress
-        else:  # COMBINED
-            osc = 0.0030 if i % 2 == 0 else -0.0015
-            d_lat = (0.0195 * (progress**1.35) + osc) * drift_scale
-            d_lon = 0.0225 * drift_scale * (progress**1.25)
-
-        unmit_lat = round(lat + d_lat, 6)
-        unmit_lon = round(lon + d_lon, 6)
-        unmitigated_track.append((unmit_lat, unmit_lon))
-
-        # Anchor-Verified Trust Gate recovers trajectory within tight channel bounds
-        mit_lat = round(lat + d_lat * 0.14, 6)
-        mit_lon = round(lon + d_lon * 0.14, 6)
-        mitigated_track.append((mit_lat, mit_lon))
-
-        # 95% Quantile Uncertainty Cone around active prediction track
-        center_lat = mit_lat if mitigated else unmit_lat
-        center_lon = mit_lon if mitigated else unmit_lon
-        cone_half_width = (0.0014 + 0.0022 * drift_scale) * (0.45 + 0.85 * progress)
-        if not mitigated and condition != "NOMINAL":
-            cone_half_width *= 1.65
-
-        upper_bound.append((round(center_lat + cone_half_width, 6), round(center_lon, 6)))
-        lower_bound.append((round(center_lat - cone_half_width, 6), round(center_lon, 6)))
-
-    anchor_start = BASE_GROUND_TRUTH_TRACK[2]
-    uncertainty_polygon = [anchor_start] + upper_bound + list(reversed(lower_bound))
-
-    return BASE_GROUND_TRUTH_TRACK, unmitigated_track, mitigated_track, uncertainty_polygon
+def _parse_latlon_json(raw_json: str) -> list[tuple[float, float]]:
+    parsed = json.loads(raw_json)
+    return [(float(pt[0]), float(pt[1])) for pt in parsed]
 
 
 @app.get("/api/health")
 def get_health() -> dict[str, object]:
+    init_and_seed_db()
     duckdb_ready = False
     duckdb_version = "unknown"
+    logged_interventions = 0
+    metrics_rows = 0
+
     try:
-        conn = duckdb.connect(":memory:")
-        row = conn.execute("SELECT version()").fetchone()
-        if row:
-            duckdb_version = str(row[0])
-        duckdb_ready = True
-        conn.close()
+        conn = get_connection()
+        try:
+            ver_row = conn.execute("SELECT version()").fetchone()
+            if ver_row:
+                duckdb_version = str(ver_row[0])
+            audit_row = conn.execute("SELECT COUNT(*) FROM hitl_audit_log").fetchone()
+            if audit_row:
+                logged_interventions = int(audit_row[0])
+            m_row = conn.execute("SELECT COUNT(*) FROM experiment_metrics").fetchone()
+            if m_row:
+                metrics_rows = int(m_row[0])
+            duckdb_ready = True
+        finally:
+            conn.close()
     except Exception:
         duckdb_ready = False
 
@@ -241,8 +167,10 @@ def get_health() -> dict[str, object]:
         "service": "neptune-guard-api",
         "duckdb_ready": duckdb_ready,
         "duckdb_version": duckdb_version,
+        "database_path": str(DB_PATH),
+        "experiment_metrics_rows": metrics_rows,
         "region": "Port of Virginia / Chesapeake Bay Approach",
-        "logged_hitl_interventions": len(HITL_AUDIT_LOG),
+        "logged_hitl_interventions": logged_interventions,
     }
 
 
@@ -252,82 +180,141 @@ def get_scenario(
     mitigated: bool = Query(True, description="Whether Anchor-Verified Trust Gate + HITL is active"),
     window: int = Query(5, ge=1, le=6, description="Rolling retraining window (1=W1 .. 6=W6)"),
 ) -> ScenarioResponse:
-    w_idx = window - 1
-    table = ERROR_PROGRESSION[condition]
+    init_and_seed_db()
+    conn = get_connection()
+    try:
+        # 1. Query selected scenario metrics from experiment_metrics
+        metrics_row = conn.execute(
+            """
+            SELECT
+                displacement_mae_m,
+                tail_95_error_m,
+                data_discarded_pct,
+                decisions_deferred_pct,
+                tier2_corrupted_volume_pct,
+                avg_data_staleness_min,
+                model_compute_latency_ms
+            FROM experiment_metrics
+            WHERE condition = ? AND mitigated = ? AND window_id = ?
+            LIMIT 1
+            """,
+            (condition, mitigated, window),
+        ).fetchone()
 
-    gt_track, unmit_track, mit_track, cone_poly = _build_tracks(condition, window, mitigated)
+        if not metrics_row:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No experiment_metrics found for condition={condition}, mitigated={mitigated}, window={window}",
+            )
 
-    mae = table["mitigated_mae"][w_idx] if mitigated else table["unmitigated_mae"][w_idx]
-    tail_95 = (
-        table["tail_95_mitigated"][w_idx]
-        if mitigated
-        else table["tail_95_unmitigated"][w_idx]
-    )
-    discarded_pct = table["discarded_pct"][w_idx] if mitigated else 0.0
-    deferred_pct = table["deferred_pct"][w_idx] if mitigated else 0.0
-    model_latency_ms = round(11.8 + (1.6 if mitigated else 0.0) + 0.2 * w_idx, 1)
-
-    if HITL_AUDIT_LOG:
-        avg_review_s = round(
-            sum(item.review_duration_seconds for item in HITL_AUDIT_LOG) / len(HITL_AUDIT_LOG),
-            1,
+        (
+            mae,
+            tail_95,
+            discarded_pct,
+            deferred_pct,
+            corrupted_pct,
+            staleness_min,
+            model_latency_ms,
+        ) = (
+            float(metrics_row[0]),
+            float(metrics_row[1]),
+            float(metrics_row[2]),
+            float(metrics_row[3]),
+            float(metrics_row[4]),
+            float(metrics_row[5]),
+            float(metrics_row[6]),
         )
-    else:
-        avg_review_s = 8.4 if mitigated else 0.0
 
-    timeline_series = [
-        TimelinePoint(
-            window=f"W{i + 1}",
-            unmitigated_mae=table["unmitigated_mae"][i],
-            mitigated_mae=table["mitigated_mae"][i],
-            tier2_corrupted_volume_pct=table["corrupted_vol_pct"][i],
-            avg_data_staleness_min=table["staleness_min"][i],
-        )
-        for i in range(6)
-    ]
+        # 2. Query vessel trajectory and alert telemetry from vessel_trajectories
+        traj_row = conn.execute(
+            """
+            SELECT
+                mmsi,
+                vessel_name,
+                ground_truth_json,
+                unmitigated_pred_json,
+                mitigated_pred_json,
+                uncertainty_poly_json,
+                tier1_divergence_m,
+                staleness_min,
+                trust_score
+            FROM vessel_trajectories
+            WHERE condition = ? AND mitigated = ? AND window_id = ?
+            LIMIT 1
+            """,
+            (condition, mitigated, window),
+        ).fetchone()
 
-    staleness_min = table["staleness_min"][w_idx]
-    corrupted_pct = table["corrupted_vol_pct"][w_idx]
-    divergence_m = round(table["unmitigated_mae"][w_idx] * 0.88, 1)
-    trust_score = round(max(0.12, 0.98 - (corrupted_pct / 100.0) * 0.85), 2)
+        if not traj_row:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No vessel_trajectories found for condition={condition}, mitigated={mitigated}, window={window}",
+            )
+
+        mmsi = str(traj_row[0])
+        vessel_name = str(traj_row[1])
+        gt_track = _parse_latlon_json(str(traj_row[2]))
+        unmit_track = _parse_latlon_json(str(traj_row[3]))
+        mit_track = _parse_latlon_json(str(traj_row[4]))
+        cone_poly = _parse_latlon_json(str(traj_row[5]))
+        divergence_m = float(traj_row[6])
+        traj_staleness_min = float(traj_row[7])
+        trust_score = float(traj_row[8])
+
+        # 3. Query aggregate average of review_duration_seconds from hitl_audit_log
+        avg_review_row = conn.execute(
+            "SELECT COALESCE(AVG(review_duration_seconds), 0.0) FROM hitl_audit_log"
+        ).fetchone()
+        avg_review_s = round(float(avg_review_row[0]), 1) if avg_review_row else 0.0
+
+        # 4. Query rolling timeline series W1..W6 for this condition (joining unmitigated & mitigated MAE)
+        timeline_rows = conn.execute(
+            """
+            SELECT
+                u.window_id,
+                u.displacement_mae_m AS unmitigated_mae,
+                m.displacement_mae_m AS mitigated_mae,
+                u.tier2_corrupted_volume_pct,
+                u.avg_data_staleness_min
+            FROM experiment_metrics u
+            JOIN experiment_metrics m
+              ON u.condition = m.condition
+             AND u.window_id = m.window_id
+            WHERE u.condition = ?
+              AND u.mitigated = FALSE
+              AND m.mitigated = TRUE
+            ORDER BY u.window_id ASC
+            """,
+            (condition,),
+        ).fetchall()
+
+        timeline_series = [
+            TimelinePoint(
+                window=f"W{int(r[0])}",
+                unmitigated_mae=float(r[1]),
+                mitigated_mae=float(r[2]),
+                tier2_corrupted_volume_pct=float(r[3]),
+                avg_data_staleness_min=float(r[4]),
+            )
+            for r in timeline_rows
+        ]
+    finally:
+        conn.close()
+
     requires_review = condition != "NOMINAL" and window >= 2
-
-    if condition == "NOMINAL":
-        explanation = (
-            "Tier-2 commercial stream aligns within 45m of delayed Tier-1 USCG coastal anchor. "
-            "Kinematic velocity and heading deltas remain within nominal Norfolk channel bounds."
-        )
-    elif condition == "STALE":
-        explanation = (
-            f"Tier-2 Fast Feed repeats cached vessel coordinates (avg age {staleness_min:.1f} min) "
-            f"with fresh timestamps, deviating {divergence_m:.0f}m from Tier-1 USCG Anchor trajectory."
-        )
-    elif condition == "LOW_QUALITY":
-        explanation = (
-            f"Tier-2 Fast Feed exhibits severe GPS multipath jitter and SOG/COG spikes across "
-            f"{corrupted_pct:.0f}% of retraining buffer; deviates {divergence_m:.0f}m from Tier-1 Anchor."
-        )
-    else:
-        explanation = (
-            f"Combined poisoning: Tier-2 Fast Feed has {staleness_min:.1f} min staleness and "
-            f"{corrupted_pct:.0f}% corrupted records, pulling unmitigated t+15 prediction {divergence_m:.0f}m "
-            "outside Thimble Shoal inbound channel."
-        )
-
-    window_labels = {
-        1: "W1: Baseline Reference",
-        2: "W2: Early Feed Drift",
-        3: "W3: Moderate Poisoning",
-        4: "W4: Heavy Retraining Drift",
-        5: "W5: Severe Channel Excursion",
-        6: "W6: Unseen Evaluation Period",
-    }
+    explanation = build_explanation(
+        condition=condition,
+        window_id=window,
+        staleness_min=staleness_min,
+        corrupted_pct=corrupted_pct,
+        divergence_m=divergence_m,
+    )
 
     return ScenarioResponse(
         condition=condition,
         mitigated=mitigated,
         window=window,
-        window_label=window_labels[window],
+        window_label=WINDOW_LABELS.get(window, f"W{window}"),
         ground_truth_track=gt_track,
         unmitigated_prediction_track=unmit_track,
         mitigated_prediction_track=mit_track,
@@ -342,10 +329,10 @@ def get_scenario(
         ),
         timeline_series=timeline_series,
         hitl_alert=HitlAlertPayload(
-            vessel_name="MV VIRGINIA TRADER",
-            mmsi="367591240",
+            vessel_name=vessel_name,
+            mmsi=mmsi,
             tier1_vs_tier2_divergence_m=divergence_m,
-            staleness_minutes=staleness_min,
+            staleness_minutes=traj_staleness_min,
             trust_score=trust_score,
             requires_human_review=requires_review,
             explanation=explanation,
@@ -353,30 +340,184 @@ def get_scenario(
     )
 
 
+@app.get("/api/matrix-summary", response_model=MatrixSummaryResponse)
+def get_matrix_summary(
+    window: int = Query(6, ge=1, le=6, description="Evaluation window to compare across all 8 runs (default 6=W6 Unseen Test Period)"),
+) -> MatrixSummaryResponse:
+    init_and_seed_db()
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            """
+            SELECT
+                m.condition,
+                m.mitigated,
+                m.window_id,
+                m.displacement_mae_m,
+                m.tail_95_error_m,
+                m.data_discarded_pct,
+                m.decisions_deferred_pct,
+                m.model_compute_latency_ms,
+                u.displacement_mae_m AS unmitigated_mae_m
+            FROM experiment_metrics m
+            JOIN experiment_metrics u
+              ON m.condition = u.condition
+             AND m.window_id = u.window_id
+             AND u.mitigated = FALSE
+            WHERE m.window_id = ?
+            ORDER BY
+                CASE m.condition
+                    WHEN 'NOMINAL' THEN 1
+                    WHEN 'STALE' THEN 2
+                    WHEN 'LOW_QUALITY' THEN 3
+                    WHEN 'COMBINED' THEN 4
+                    ELSE 5
+                END,
+                m.mitigated ASC
+            """,
+            (window,),
+        ).fetchall()
+
+        avg_review_row = conn.execute(
+            "SELECT COALESCE(AVG(review_duration_seconds), 0.0) FROM hitl_audit_log"
+        ).fetchone()
+        avg_review_s = round(float(avg_review_row[0]), 1) if avg_review_row else 0.0
+    finally:
+        conn.close()
+
+    runs: list[MatrixRunEntry] = []
+    for idx, row in enumerate(rows, start=1):
+        cond = str(row[0])  # type: ignore[assignment]
+        cond_typed: ConditionType = cond  # type: ignore[assignment]
+        is_mitigated = bool(row[1])
+        win_id = int(row[2])
+        mae = float(row[3])
+        tail_95 = float(row[4])
+        discarded = float(row[5])
+        deferred = float(row[6])
+        latency_ms = float(row[7])
+        unmit_mae = float(row[8])
+
+        if is_mitigated and unmit_mae > 0:
+            recovery_gain_pct = round(((unmit_mae - mae) / unmit_mae) * 100.0, 1)
+        else:
+            recovery_gain_pct = 0.0
+
+        runs.append(
+            MatrixRunEntry(
+                run_id=idx,
+                condition=cond_typed,
+                condition_label=CONDITION_LABELS.get(cond_typed, cond),
+                mitigated=is_mitigated,
+                defense_label=(
+                    "With Countermeasure (Anchor + HITL)"
+                    if is_mitigated
+                    else "Without Countermeasure (Naive)"
+                ),
+                window=win_id,
+                window_label=WINDOW_LABELS.get(win_id, f"W{win_id}"),
+                displacement_mae_m=mae,
+                tail_95_error_m=tail_95,
+                data_discarded_pct=discarded,
+                decisions_deferred_pct=deferred,
+                recovery_gain_pct=recovery_gain_pct,
+                model_compute_latency_ms=latency_ms,
+            )
+        )
+
+    return MatrixSummaryResponse(
+        window=window,
+        window_label=WINDOW_LABELS.get(window, f"W{window}"),
+        avg_human_review_s=avg_review_s,
+        runs=runs,
+    )
+
+
 @app.post("/api/hitl/override", response_model=HitlOverrideResponse)
 def post_hitl_override(payload: HitlOverrideRequest) -> HitlOverrideResponse:
-    model_latency_ms = 13.2
+    init_and_seed_db()
+    now_dt = datetime.now(timezone.utc)
+    now_iso = now_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    conn = get_connection()
+    try:
+        next_id_row = conn.execute(
+            "SELECT COALESCE(MAX(id), 0) + 1 FROM hitl_audit_log"
+        ).fetchone()
+        next_id = int(next_id_row[0]) if next_id_row else 1
+
+        lat_row = conn.execute(
+            """
+            SELECT model_compute_latency_ms
+            FROM experiment_metrics
+            WHERE condition = ? AND window_id = ? AND mitigated = TRUE
+            LIMIT 1
+            """,
+            (payload.condition, payload.window),
+        ).fetchone()
+        model_latency_ms = float(lat_row[0]) if lat_row else 13.4
+
+        vessel_row = conn.execute(
+            """
+            SELECT vessel_name
+            FROM vessel_trajectories
+            WHERE mmsi = ?
+            LIMIT 1
+            """,
+            (payload.mmsi,),
+        ).fetchone()
+        vessel_name = str(vessel_row[0]) if vessel_row else "MV VIRGINIA TRADER"
+
+        action_label = (
+            "Deferred to Tier-1 USCG Coastal Anchor Kinematic Extrapolation"
+            if payload.action == "DEFER_TO_ANCHOR_KINEMATIC"
+            else "Logged Watch Officer Manual Course Override"
+        )
+
+        conn.execute(
+            """
+            INSERT INTO hitl_audit_log (
+                id,
+                timestamp,
+                mmsi,
+                vessel_name,
+                condition,
+                window_id,
+                action_taken,
+                review_duration_seconds,
+                operator_notes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                next_id,
+                now_dt.replace(tzinfo=None),
+                payload.mmsi,
+                vessel_name,
+                payload.condition,
+                payload.window,
+                payload.action,
+                round(payload.review_duration_seconds, 2),
+                action_label,
+            ),
+        )
+
+        stats_row = conn.execute(
+            "SELECT COUNT(*), COALESCE(AVG(review_duration_seconds), 0.0) FROM hitl_audit_log"
+        ).fetchone()
+        total_interventions = int(stats_row[0]) if stats_row else 1
+        avg_review_s = round(float(stats_row[1]), 2) if stats_row else round(payload.review_duration_seconds, 2)
+    finally:
+        conn.close()
+
     entry = HitlOverrideAuditEntry(
-        audit_id=len(HITL_AUDIT_LOG) + 1,
+        audit_id=next_id,
         mmsi=payload.mmsi,
         action=payload.action,
         review_duration_seconds=round(payload.review_duration_seconds, 2),
         condition=payload.condition,
         window=payload.window,
-        logged_at_utc=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        logged_at_utc=now_iso,
         model_compute_latency_ms=model_latency_ms,
-    )
-    HITL_AUDIT_LOG.append(entry)
-
-    avg_review_s = round(
-        sum(item.review_duration_seconds for item in HITL_AUDIT_LOG) / len(HITL_AUDIT_LOG),
-        2,
-    )
-
-    action_label = (
-        "Deferred to Tier-1 USCG Coastal Anchor Kinematic Extrapolation"
-        if payload.action == "DEFER_TO_ANCHOR_KINEMATIC"
-        else "Logged Watch Officer Manual Course Override"
     )
 
     return HitlOverrideResponse(
@@ -387,6 +528,6 @@ def post_hitl_override(payload: HitlOverrideRequest) -> HitlOverrideResponse:
             f"from model compute latency ({model_latency_ms:.1f}ms)."
         ),
         audit_entry=entry,
-        total_interventions_logged=len(HITL_AUDIT_LOG),
+        total_interventions_logged=total_interventions,
         avg_human_review_s=avg_review_s,
     )
