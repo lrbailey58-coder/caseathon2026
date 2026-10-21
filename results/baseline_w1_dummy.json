@@ -1,0 +1,75 @@
+{
+  "run": "reference_baseline",
+  "data_source": "dummy",
+  "is_synthetic": true,
+  "window_id": 1,
+  "seed": 42,
+  "horizon_minutes": 15.0,
+  "split_rule": "whole voyages; latest-starting 20% are test; train rows need t+15 before test start",
+  "n_train_voyages": 64,
+  "n_test_voyages": 16,
+  "n_train_rows": 4104,
+  "n_test_rows": 1033,
+  "features": [
+    "lat",
+    "lon",
+    "sog",
+    "cog_sin",
+    "cog_cos",
+    "v_north_kn",
+    "v_east_kn",
+    "dt_prev_s",
+    "d_sog_per_min",
+    "d_cog_per_min",
+    "vessel_group"
+  ],
+  "model": "dead reckoning + LightGBM correction (one regressor each for north and east meters)",
+  "lgbm_params": {
+    "n_estimators": 300,
+    "learning_rate": 0.05,
+    "num_leaves": 31,
+    "min_child_samples": 20,
+    "objective": "l1",
+    "random_state": 42,
+    "deterministic": true,
+    "force_row_wise": true,
+    "verbose": -1
+  },
+  "lightgbm": {
+    "displacement_mae_m": 293.3929233400954,
+    "tail_95_error_m": 696.0054311132427,
+    "n_predictions": 1033,
+    "by_vessel_group": {
+      "cargo": {
+        "displacement_mae_m": 303.59931927484485,
+        "tail_95_error_m": 724.4009530812692,
+        "n_predictions": 528
+      },
+      "tanker": {
+        "displacement_mae_m": 282.7216816499021,
+        "tail_95_error_m": 594.536070383305,
+        "n_predictions": 505
+      }
+    }
+  },
+  "dead_reckoning": {
+    "displacement_mae_m": 877.610159963736,
+    "tail_95_error_m": 3377.8029172161177,
+    "n_predictions": 1033,
+    "by_vessel_group": {
+      "cargo": {
+        "displacement_mae_m": 987.5801824808539,
+        "tail_95_error_m": 4097.820573485232,
+        "n_predictions": 528
+      },
+      "tanker": {
+        "displacement_mae_m": 762.6316017676207,
+        "tail_95_error_m": 2774.8552389430074,
+        "n_predictions": 505
+      }
+    }
+  },
+  "predict_total_ms": 22.86,
+  "predict_ms_per_row": 0.02213,
+  "created_utc": "2026-10-21T23:34:05Z"
+}
