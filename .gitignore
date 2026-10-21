@@ -3,7 +3,17 @@
 
 # Python caches
 __pycache__/
-*.pyc
+*.py[cod]
 
-# uv cache (if configured locally)
+# uv cache
 .uv/
+
+# Node & Frontend build artifacts
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# DuckDB & large data artifacts
+*.duckdb
+*.duckdb.wal
