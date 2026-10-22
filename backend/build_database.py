@@ -13,6 +13,8 @@ import duckdb
 import numpy as np
 import requests
 import zstandard as zstd
+import zipfile
+import shutil
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 DB_PATH = ROOT_DIR / "backend" / "maritime_case.duckdb"
@@ -28,6 +30,13 @@ MIN_SOG = 0.5
 # NOAA Azure Storage base URL for 2025 daily AIS data
 NOAA_BASE_URL = "https://noaaocm.blob.core.windows.net/ais/csv2/csv2025"
 
+#NOAA AIS files are large, so we set a custom User-Agent to avoid 403 errors
+HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,"
+        " like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    )
+}
 
 def init_tables(con: duckdb.DuckDBPyConnection):
   """Initializes DuckDB tables per Architecture.md."""
@@ -90,14 +99,14 @@ def init_tables(con: duckdb.DuckDBPyConnection):
 
 
 def download_and_stream_ingest(
-    con: duckdb.DuckDBPyConnection, start_date: date, days: int = 42
+    con: duckdb.DuckDBPyConnection, start_date: date, days: int = 12
 ):
-  """Downloads daily slices for 6 weeks, decompresses, filters, and loads raw_reference_ais."""
+  """Downloads ais-YYYY-MM-DD.csv.zst files directly, filters for Chesapeake Bay, and loads raw_reference_ais."""
   TEMP_DIR.mkdir(parents=True, exist_ok=True)
+  LOCAL_DATA_DIR = ROOT_DIR / "data_raw"
 
-  # Stage filtered pings into a temporary table before voyage assignment
   con.execute("""
-        CREATE TEMP TABLE temp_filtered_pings (
+        CREATE TEMP TABLE IF NOT EXISTS temp_filtered_pings (
             mmsi BIGINT,
             base_datetime TIMESTAMP,
             lat DOUBLE,
@@ -112,106 +121,129 @@ def download_and_stream_ingest(
 
   for day_offset in range(days):
     curr_date = start_date + timedelta(days=day_offset)
-    date_str = curr_date.strftime("%Y_%m_%d")
+    date_str = curr_date.strftime("%Y-%m-%d")
 
-    # Try .csv.zst first, fallback to .csv
-    extensions = [".csv.zst", ".csv"]
-    downloaded_path = None
+    zst_filename = f"ais-{date_str}.csv.zst"
+    csv_filename = f"ais-{date_str}.csv"
+
+    dest_zst = TEMP_DIR / zst_filename
     target_csv_path = None
 
-    for ext in extensions:
-      filename = f"AIS_{date_str}{ext}"
-      url = f"{NOAA_BASE_URL}/{filename}"
-      dest_file = TEMP_DIR / filename
-      print(f"[{day_offset+1}/{days}] Fetching {filename}...")
+    # 1. Use local CSV if you already downloaded it
+    local_csv_candidates = [
+        LOCAL_DATA_DIR / csv_filename,
+        ROOT_DIR / "data" / csv_filename,
+    ]
+    for cand in local_csv_candidates:
+      if cand.exists():
+        print(f"[{day_offset+1}/{days}] Using local file: {cand.name}")
+        target_csv_path = cand
+        break
+
+    # 2. Otherwise download the .csv.zst file directly
+    if not target_csv_path:
+      url = f"{NOAA_BASE_URL}/{zst_filename}"
+      print(f"[{day_offset+1}/{days}] Downloading {zst_filename}...")
 
       try:
-        resp = requests.get(url, stream=True, timeout=60)
+        resp = requests.get(url, headers=HEADERS, stream=True, timeout=180)
         if resp.status_code == 200:
-          with open(dest_file, "wb") as f:
-            for chunk in resp.iter_content(chunk_size=1024 * 1024):
+          with open(dest_zst, "wb") as f:
+            for chunk in resp.iter_content(chunk_size=2 * 1024 * 1024):
               if chunk:
                 f.write(chunk)
-          downloaded_path = dest_file
-          break
+
+          # Decompress .zst to .csv in TEMP_DIR
+          target_csv_path = TEMP_DIR / csv_filename
+          dctx = zstd.ZstdDecompressor()
+          with (
+              open(dest_zst, "rb") as ifh,
+              open(target_csv_path, "wb") as ofh,
+          ):
+            dctx.copy_stream(ifh, ofh)
+
+          dest_zst.unlink(missing_ok=True)  # remove compressed file immediately
+        else:
+          print(
+              f"  Warning: HTTP {resp.status_code} for {zst_filename}, skipping."
+          )
+          continue
       except Exception as e:
-        print(f"  Failed attempt from {url}: {e}")
+        print(f"  Network error for {zst_filename}: {e}")
+        continue
 
-    if not downloaded_path:
-      print(f"  Warning: Could not fetch slice for {date_str}, skipping.")
-      continue
+    # 3. Stream into DuckDB applying spatial and vessel filters
+    if target_csv_path and target_csv_path.exists():
+      print(f"  Filtering and inserting {target_csv_path.name} into DuckDB...")
+      con.execute(f"""
+                INSERT INTO temp_filtered_pings
+                SELECT 
+                    mmsi::BIGINT,
+                    base_date_time::TIMESTAMP,
+                    latitude::DOUBLE,
+                    longitude::DOUBLE,
+                    sog::DOUBLE,
+                    cog::DOUBLE,
+                    heading::DOUBLE,
+                    vessel_name::VARCHAR,
+                    vessel_type::VARCHAR
+                FROM read_csv_auto('{target_csv_path.as_posix()}')
+                WHERE latitude BETWEEN {LAT_MIN} AND {LAT_MAX}
+                  AND longitude BETWEEN {LON_MIN} AND {LON_MAX}
+                  AND sog > {MIN_SOG}
+                  AND (
+                      TRY_CAST(vessel_type AS INTEGER) IN (31, 32, 52) 
+                      OR TRY_CAST(vessel_type AS INTEGER) BETWEEN 70 AND 89
+                  );
+            """)
 
-    # Decompress if .csv.zst
-    if str(downloaded_path).endswith(".zst"):
-      target_csv_path = TEMP_DIR / f"AIS_{date_str}.csv"
-      dctx = zstd.ZstdDecompressor()
-      with (
-          open(downloaded_path, "rb") as ifh,
-          open(target_csv_path, "wb") as ofh,
-      ):
-        dctx.copy_stream(ifh, ofh)
-      downloaded_path.unlink()  # remove .zst immediately
-    else:
-      target_csv_path = downloaded_path
+      # Delete decompressed CSV if it was created in temp
+      if target_csv_path.parent == TEMP_DIR:
+        target_csv_path.unlink(missing_ok=True)
 
-    # Stream into DuckDB with bounding box filter applied during read
-    con.execute(f"""
-            INSERT INTO temp_filtered_pings
-            SELECT 
-                mmsi::BIGINT,
-                base_date_time::TIMESTAMP,
-                latitude::DOUBLE,
-                longitude::DOUBLE,
-                sog::DOUBLE,
-                cog::DOUBLE,
-                heading::DOUBLE,
-                vessel_name::VARCHAR,
-                vessel_type::VARCHAR
-            FROM read_csv_auto('{target_csv_path.as_posix()}')
-            WHERE latitude BETWEEN {LAT_MIN} AND {LAT_MAX}
-              AND longitude BETWEEN {LON_MIN} AND {LON_MAX}
-              AND sog > {MIN_SOG}
-              AND (
-                  TRY_CAST(vessel_type AS INTEGER) IN (31, 32, 52) 
-                  OR TRY_CAST(vessel_type AS INTEGER) BETWEEN 70 AND 89
-              );
-        """)
-
-    # Clean up the uncompressed CSV from disk
-    if target_csv_path.exists():
-      target_csv_path.unlink()
-
-  # Segment into leak-free voyages and assign 6 windows
-  print("Segmenting voyages and assigning windows W1-W6...")
-  con.execute("""
-    INSERT INTO raw_reference_ais
-    WITH ordered_pings AS (
-        SELECT *,
-            LAG(base_datetime) OVER (PARTITION BY mmsi ORDER BY base_datetime) AS prev_time
-        FROM temp_filtered_pings
-    ),
-    voyage_segmented AS (
-        SELECT *,
-            SUM(CASE WHEN prev_time IS NULL OR epoch(base_datetime) - epoch(prev_time) > 1800 THEN 1 ELSE 0 END)
-            OVER (PARTITION BY mmsi ORDER BY base_datetime) AS voyage_num
-        FROM ordered_pings
-    ),
-    voyages_assigned AS (
-        SELECT *,
-            mmsi || '_' || voyage_num AS voyage_id,
-            MIN(base_datetime) OVER (PARTITION BY mmsi, voyage_num) AS voyage_start
-        FROM voyage_segmented
+  # 4. Check if records were captured
+  total_filtered = con.execute(
+      "SELECT COUNT(*) FROM temp_filtered_pings"
+  ).fetchone()[0]
+  if total_filtered == 0:
+    raise RuntimeError(
+        "No records ingested. Check if the dates exist on the NOAA server or"
+        " verify your bounding box."
     )
-    SELECT 
-        voyage_id, mmsi, base_datetime, lat, lon, sog, cog, heading, vessel_name, vessel_type,
-        NTILE(6) OVER (ORDER BY voyage_start) AS window_id
-    FROM voyages_assigned;
+
+  # 5. Segment into leak-free voyages and partition across W1-W6
+  print(
+      f"Segmenting {total_filtered:,} pings into leak-free voyages across"
+      " W1-W6..."
+  )
+  con.execute("""
+        INSERT INTO raw_reference_ais
+        WITH ordered_pings AS (
+            SELECT *,
+                LAG(base_datetime) OVER (PARTITION BY mmsi ORDER BY base_datetime) AS prev_time
+            FROM temp_filtered_pings
+        ),
+        voyage_segmented AS (
+            SELECT *,
+                SUM(CASE WHEN prev_time IS NULL OR epoch(base_datetime) - epoch(prev_time) > 1800 THEN 1 ELSE 0 END)
+                OVER (PARTITION BY mmsi ORDER BY base_datetime) AS voyage_num
+            FROM ordered_pings
+        ),
+        voyages_assigned AS (
+            SELECT *,
+                mmsi || '_' || voyage_num AS voyage_id,
+                MIN(base_datetime) OVER (PARTITION BY mmsi, voyage_num) AS voyage_start
+            FROM voyage_segmented
+        )
+        SELECT 
+            voyage_id, mmsi, base_datetime, lat, lon, sog, cog, heading, vessel_name, vessel_type,
+            NTILE(6) OVER (ORDER BY voyage_start) AS window_id
+        FROM voyages_assigned;
     """)
 
+  # Clean up temp folder safely
   if TEMP_DIR.exists():
-    for f in TEMP_DIR.glob("*"):
-      f.unlink()
-    TEMP_DIR.rmdir()
+    shutil.rmtree(TEMP_DIR, ignore_errors=True)
 
 
 def inject_degradations(con: duckdb.DuckDBPyConnection):
@@ -381,7 +413,7 @@ if __name__ == "__main__":
 
   # Target date range: 6 weeks starting Sep 1, 2025
   start_dt = date(2025, 9, 1)
-  download_and_stream_ingest(con, start_date=start_dt, days=42)
+  download_and_stream_ingest(con, start_date=start_dt, days=12)
 
   inject_degradations(con)
   export_manifest(con)
