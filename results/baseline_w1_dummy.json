@@ -54,7 +54,7 @@
   },
   "dead_reckoning": {
     "displacement_mae_m": 877.610159963736,
-    "tail_95_error_m": 3377.8029172161177,
+    "tail_95_error_m": 3377.8029172161173,
     "n_predictions": 1033,
     "by_vessel_group": {
       "cargo": {
@@ -69,7 +69,11 @@
       }
     }
   },
-  "predict_total_ms": 22.86,
-  "predict_ms_per_row": 0.02213,
-  "created_utc": "2026-10-21T23:34:05Z"
+  "predict_total_ms": 23.77,
+  "predict_ms_per_row": 0.02301,
+  "data_notes": {
+    "source": "dummy (synthetic)"
+  },
+  "created_utc": "2026-10-22T21:13:05Z",
+  "saved_model": "models/baseline_w1_dummy.joblib"
 }

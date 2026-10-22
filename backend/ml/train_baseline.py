@@ -1,11 +1,12 @@
 """Reference baseline: train LightGBM to predict where a ship will be in 15 minutes.
 
 Run from the repository root:
-    uv run python -m backend.ml.train_baseline              # dummy data, window W1, seed 42
-    uv run python -m backend.ml.train_baseline --seed 7     # repeat with a different seed
+    uv run python -m backend.ml.train_baseline                  # dummy data, window W1, seed 42
+    uv run python -m backend.ml.train_baseline --source real    # Person 1's real data
+    uv run python -m backend.ml.train_baseline --seed 7         # repeat with a different seed
 
 What it does:
- 1. Load pings (dummy data for now; Day 2 swaps in Person 1's real data in load_pings()).
+ 1. Load clean (NOMINAL) pings for one window: dummy data, or Person 1's database (data.py).
  2. Build features and 15-minute targets (features.py).
  3. Split by whole voyage, in time order: earliest ~80% of voyages train, latest ~20% test.
  4. Start from a physics guess ("dead reckoning": the ship keeps its current speed and
@@ -14,7 +15,8 @@ What it does:
     This lets the AI focus on what physics misses (e.g. turning at a channel bend).
  5. Score in meters against the true position, and also score physics alone, so we can
     show the AI adds value (if it doesn't, we report that honestly).
- 6. Save the numbers to results/baseline_w<window>_<source>.json.
+ 6. Save the numbers to results/baseline_w<window>_<source>.json and the trained
+    models to models/baseline_w<window>_<source>.joblib.
 """
 
 from __future__ import annotations
@@ -29,7 +31,7 @@ import numpy as np
 import pandas as pd
 from lightgbm import LGBMRegressor
 
-from backend.ml.dummy_data import generate_dummy_ais
+from backend.ml.data import SOURCES, load_pings
 from backend.ml.features import (
     FEATURE_COLUMNS,
     HORIZON_S,
@@ -38,6 +40,7 @@ from backend.ml.features import (
     make_dataset,
 )
 from backend.ml.metrics import haversine_m, offset_m_to_latlon, summarize_errors
+from backend.ml.model_store import save_models
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 RESULTS_DIR = REPO_ROOT / "results"
@@ -56,11 +59,6 @@ def lgbm_params(seed: int) -> dict:
         "force_row_wise": True,
         "verbose": -1,
     }
-
-
-def load_pings(seed: int) -> tuple[pd.DataFrame, str]:
-    """Return (pings, source_label). Day 2: replace with Person 1's DuckDB table."""
-    return generate_dummy_ais(seed=seed), "dummy"
 
 
 def split_by_voyage_in_time(df: pd.DataFrame, test_frac: float = 0.2) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -123,9 +121,8 @@ def score(df: pd.DataFrame, north_m: np.ndarray, east_m: np.ndarray) -> dict:
     return result
 
 
-def run_baseline(window: int = 1, seed: int = 42) -> dict:
-    pings, source = load_pings(seed)
-    pings = pings[pings["window_id"] == window]
+def run_baseline(window: int = 1, seed: int = 42, source: str = "dummy", save: bool = False) -> dict:
+    pings = load_pings(source=source, condition="NOMINAL", windows=[window], seed=seed)
     dataset = make_dataset(pings)
     train, test = split_by_voyage_in_time(dataset)
 
@@ -134,7 +131,7 @@ def run_baseline(window: int = 1, seed: int = 42) -> dict:
     north_pred, east_pred = predict_offsets(models, test)
     predict_ms = (time.perf_counter() - start) * 1000
 
-    return {
+    result = {
         "run": "reference_baseline",
         "data_source": source,
         "is_synthetic": source == "dummy",
@@ -153,17 +150,25 @@ def run_baseline(window: int = 1, seed: int = 42) -> dict:
         "dead_reckoning": score(test, *dead_reckoning_offsets(test)),
         "predict_total_ms": round(predict_ms, 2),
         "predict_ms_per_row": round(predict_ms / len(test), 5),
+        "data_notes": pings.attrs.get("notes", {}),
         "created_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
+    if save:
+        path = save_models(models, f"baseline_w{window}_{source}", info={
+            k: result[k] for k in ("run", "data_source", "window_id", "seed", "split_rule", "lgbm_params")
+        })
+        result["saved_model"] = str(path.relative_to(REPO_ROOT))
+    return result
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Train and score the 15-minute position baseline.")
     parser.add_argument("--window", type=int, default=1, help="which week to use, 1-6 (default 1)")
     parser.add_argument("--seed", type=int, default=42, help="random seed (default 42)")
+    parser.add_argument("--source", choices=SOURCES, default="dummy", help="dummy (default) or real")
     args = parser.parse_args()
 
-    r = run_baseline(window=args.window, seed=args.seed)
+    r = run_baseline(window=args.window, seed=args.seed, source=args.source, save=True)
 
     RESULTS_DIR.mkdir(exist_ok=True)
     out_path = RESULTS_DIR / f"baseline_w{r['window_id']}_{r['data_source']}.json"
@@ -184,7 +189,7 @@ def main() -> None:
         print(f"{name:24}{a['displacement_mae_m']:>11.0f}{a['tail_95_error_m']:>11.0f}"
               f"{p['displacement_mae_m']:>11.0f}{p['tail_95_error_m']:>11.0f}")
     print(f"\nPrediction time: {r['predict_total_ms']:.1f} ms for {r['n_test_rows']:,} rows")
-    print(f"Saved: {out_path.relative_to(REPO_ROOT)}")
+    print(f"Saved: {out_path.relative_to(REPO_ROOT)} and {r['saved_model']}")
 
 
 if __name__ == "__main__":

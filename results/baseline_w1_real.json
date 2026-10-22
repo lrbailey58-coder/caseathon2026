@@ -1,0 +1,85 @@
+{
+  "run": "reference_baseline",
+  "data_source": "real",
+  "is_synthetic": false,
+  "window_id": 1,
+  "seed": 42,
+  "horizon_minutes": 15.0,
+  "split_rule": "whole voyages; latest-starting 20% are test; train rows need t+15 before test start",
+  "n_train_voyages": 259,
+  "n_test_voyages": 66,
+  "n_train_rows": 16553,
+  "n_test_rows": 5194,
+  "features": [
+    "lat",
+    "lon",
+    "sog",
+    "cog_sin",
+    "cog_cos",
+    "v_north_kn",
+    "v_east_kn",
+    "dt_prev_s",
+    "d_sog_per_min",
+    "d_cog_per_min",
+    "vessel_group"
+  ],
+  "model": "dead reckoning + LightGBM correction (one regressor each for north and east meters)",
+  "lgbm_params": {
+    "n_estimators": 300,
+    "learning_rate": 0.05,
+    "num_leaves": 31,
+    "min_child_samples": 20,
+    "objective": "l1",
+    "random_state": 42,
+    "deterministic": true,
+    "force_row_wise": true,
+    "verbose": -1
+  },
+  "lightgbm": {
+    "displacement_mae_m": 615.9307543282091,
+    "tail_95_error_m": 2188.540921941534,
+    "n_predictions": 5194,
+    "by_vessel_group": {
+      "cargo": {
+        "displacement_mae_m": 458.33942258040264,
+        "tail_95_error_m": 1484.6844023718554,
+        "n_predictions": 1376
+      },
+      "tug": {
+        "displacement_mae_m": 672.7263731037415,
+        "tail_95_error_m": 2357.0770691277235,
+        "n_predictions": 3818
+      }
+    }
+  },
+  "dead_reckoning": {
+    "displacement_mae_m": 854.3081954919156,
+    "tail_95_error_m": 2837.382498190197,
+    "n_predictions": 5194,
+    "by_vessel_group": {
+      "cargo": {
+        "displacement_mae_m": 843.3010477935337,
+        "tail_95_error_m": 2516.856538781155,
+        "n_predictions": 1376
+      },
+      "tug": {
+        "displacement_mae_m": 858.2751507650885,
+        "tail_95_error_m": 2959.569999483182,
+        "n_predictions": 3818
+      }
+    }
+  },
+  "predict_total_ms": 23.02,
+  "predict_ms_per_row": 0.00443,
+  "data_notes": {
+    "source": "real (maritime_case.duckdb, table injected_streams)",
+    "condition": "NOMINAL",
+    "windows": [
+      1
+    ],
+    "rows_dropped_missing_values": 4,
+    "window_rule": "voyage assigned to the window of its first ping"
+  },
+  "created_utc": "2026-10-22T21:35:38Z",
+  "saved_model": "models\\baseline_w1_real.joblib"
+}

@@ -1,0 +1,238 @@
+{
+  "database": "maritime_case.duckdb",
+  "checked_utc": "2026-10-22T21:34:31Z",
+  "summary": {
+    "PASS": 17,
+    "WARN": 4,
+    "FAIL": 0
+  },
+  "checks": [
+    {
+      "check": "tables exist",
+      "status": "PASS",
+      "detail": [
+        "experiment_metrics",
+        "hitl_audit_log",
+        "injected_streams",
+        "raw_reference_ais"
+      ]
+    },
+    {
+      "check": "injected_streams has the agreed columns",
+      "status": "PASS",
+      "detail": {
+        "missing": []
+      }
+    },
+    {
+      "check": "all 4 conditions present, same row count as raw data",
+      "status": "PASS",
+      "detail": {
+        "raw_reference_ais": 190149,
+        "NOMINAL": 190149,
+        "LOW_QUALITY": 190149,
+        "COMBINED": 190149,
+        "STALE": 190149
+      }
+    },
+    {
+      "check": "positions inside the Norfolk box",
+      "status": "PASS",
+      "detail": {
+        "lat": [
+          36.8,
+          37.3
+        ],
+        "lon": [
+          -76.6,
+          -75.8
+        ]
+      }
+    },
+    {
+      "check": "speed and heading in valid ranges",
+      "status": "PASS",
+      "detail": {
+        "sog_kn": [
+          0.6,
+          29.8
+        ],
+        "cog_deg": [
+          0.0,
+          359.9
+        ]
+      }
+    },
+    {
+      "check": "no AIS 'not available' codes (sog 102.3, cog 360, lat 91, lon 181)",
+      "status": "PASS",
+      "detail": 0
+    },
+    {
+      "check": "missing values (loader drops these rows)",
+      "status": "PASS",
+      "detail": {
+        "lat": 0,
+        "lon": 0,
+        "sog": 0,
+        "cog": 33,
+        "timestamp_or_voyage": 0
+      }
+    },
+    {
+      "check": "duplicate timestamps within a voyage (features keep the first)",
+      "status": "WARN",
+      "detail": 202
+    },
+    {
+      "check": "ping gaps within voyages <= 30 min (voyage rule)",
+      "status": "PASS",
+      "detail": {
+        "median_s": 71.0,
+        "p95_s": 170.0,
+        "max_s": 1800.0
+      }
+    },
+    {
+      "check": "enough voyages long enough for 15-min predictions (>= 20 min)",
+      "status": "PASS",
+      "detail": {
+        "voyages": 2841,
+        "single_ping": 231,
+        "20_min_or_longer": 2130,
+        "median_minutes": 63.3
+      }
+    },
+    {
+      "check": "voyages with pings in two windows (loader uses first-ping window)",
+      "status": "WARN",
+      "detail": 5
+    },
+    {
+      "check": "6 windows, each with >= 50 voyages",
+      "status": "PASS",
+      "detail": {
+        "W1": "423 voyages (72 cargo, 5 tanker, 346 tug)",
+        "W2": "521 voyages (96 cargo, 6 tanker, 419 tug)",
+        "W3": "432 voyages (69 cargo, 5 tanker, 358 tug)",
+        "W4": "527 voyages (110 cargo, 6 tanker, 411 tug)",
+        "W5": "502 voyages (82 cargo, 8 tanker, 412 tug)",
+        "W6": "436 voyages (44 cargo, 3 tanker, 389 tug)"
+      }
+    },
+    {
+      "check": "windows are in time order (by voyage start)",
+      "status": "PASS",
+      "detail": {
+        "W1": [
+          "2025-09-01 00:00:00",
+          "2025-09-03 01:53:22"
+        ],
+        "W2": [
+          "2025-09-03 01:56:51",
+          "2025-09-04 23:20:09"
+        ],
+        "W3": [
+          "2025-09-04 23:26:23",
+          "2025-09-06 17:44:14"
+        ],
+        "W4": [
+          "2025-09-06 17:49:25",
+          "2025-09-09 02:40:41"
+        ],
+        "W5": [
+          "2025-09-09 02:44:11",
+          "2025-09-11 06:33:20"
+        ],
+        "W6": [
+          "2025-09-11 06:37:21",
+          "2025-09-12 23:29:09"
+        ]
+      }
+    },
+    {
+      "check": "windows do not overlap in time (training code cuts overlaps anyway)",
+      "status": "WARN",
+      "detail": "long voyages from one window keep going after the next window starts"
+    },
+    {
+      "check": "cargo + tanker share of voyages",
+      "status": "WARN",
+      "detail": "18% cargo/tanker, rest tugs/towing"
+    },
+    {
+      "check": "both feeds see every voyage with 2+ pings (needed by the trust gate)",
+      "status": "PASS",
+      "detail": {
+        "voyages_with_both": 2610,
+        "voyages_with_2plus_pings": 2610,
+        "avg_tier1_share": 0.296
+      }
+    },
+    {
+      "check": "NOMINAL equals the untouched reference data",
+      "status": "PASS",
+      "detail": "0 differing rows"
+    },
+    {
+      "check": "TIER1_ANCHOR is never corrupted",
+      "status": "PASS",
+      "detail": "0 corrupted anchor rows"
+    },
+    {
+      "check": "every corrupted row links to its clean row (voyage_id + timestamp)",
+      "status": "PASS",
+      "detail": "0 rows without a clean match"
+    },
+    {
+      "check": "INFO",
+      "status": "PASS",
+      "detail": {
+        "COMBINED": {
+          "W1": 0.0,
+          "W2": 100.0,
+          "W3": 100.0,
+          "W4": 100.0,
+          "W5": 100.0,
+          "W6": 100.0
+        },
+        "LOW_QUALITY": {
+          "W1": 0.0,
+          "W2": 100.0,
+          "W3": 100.0,
+          "W4": 100.0,
+          "W5": 100.0,
+          "W6": 100.0
+        },
+        "NOMINAL": {
+          "W1": 0.0,
+          "W2": 0.0,
+          "W3": 0.0,
+          "W4": 0.0,
+          "W5": 0.0,
+          "W6": 0.0
+        },
+        "STALE": {
+          "W1": 0.0,
+          "W2": 13.0,
+          "W3": 26.8,
+          "W4": 43.2,
+          "W5": 61.1,
+          "W6": 61.9
+        }
+      }
+    },
+    {
+      "check": "NOMINAL has no corruption",
+      "status": "PASS",
+      "detail": {
+        "W1": 0.0,
+        "W2": 0.0,
+        "W3": 0.0,
+        "W4": 0.0,
+        "W5": 0.0,
+        "W6": 0.0
+      }
+    }
+  ]
+}
