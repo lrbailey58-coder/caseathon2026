@@ -10,6 +10,9 @@ Cleanup applied to real data (logged in the returned `.attrs["notes"]`):
   * A voyage belongs to the window of its FIRST ping. (A few voyages in the
     database have pings in two windows; this keeps each voyage whole.)
   * Rows missing lat, lon, sog or cog are dropped (the physics guess needs them).
+  * Pings that share the exact same timestamp in the same voyage are dropped
+    (both copies). The database has no rule for which copy is "first", so
+    keeping one would make results change from run to run.
 """
 
 from __future__ import annotations
@@ -86,17 +89,50 @@ def load_pings(
     with connect(db_path) as con:
         df = con.execute(_REAL_QUERY, {"condition": condition, "windows": windows}).df()
 
-    df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.tz_localize("UTC")  # stored as UTC, no zone
-    missing = df[["lat", "lon", "sog", "cog"]].isna().any(axis=1)
-    df = df[~missing].reset_index(drop=True)
+    df = _clean_real(df)
     df.attrs["notes"] = {
         "source": f"real ({Path(db_path).name}, table injected_streams)",
         "condition": condition,
         "windows": windows,
-        "rows_dropped_missing_values": int(missing.sum()),
+        "rows_dropped_missing_values": df.attrs["dropped_missing"],
+        "rows_dropped_duplicate_timestamps": df.attrs["dropped_duplicates"],
         "window_rule": "voyage assigned to the window of its first ping",
     }
     return df[MODEL_COLUMNS]
+
+
+def _clean_real(df: pd.DataFrame) -> pd.DataFrame:
+    """UTC timestamps; drop rows with missing values and all copies of duplicate timestamps."""
+    df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.tz_localize("UTC")  # stored as UTC, no zone
+    missing = df[["lat", "lon", "sog", "cog"]].isna().any(axis=1)
+    duplicate = df.duplicated(["voyage_id", "timestamp"], keep=False)
+    out = df[~missing & ~duplicate].reset_index(drop=True)
+    out.attrs["dropped_missing"] = int(missing.sum())
+    out.attrs["dropped_duplicates"] = int((duplicate & ~missing).sum())
+    return out
+
+
+def load_audit_labels(condition: str, windows: list[int] | None = None, db_path: Path = DB_PATH) -> pd.DataFrame:
+    """AUDIT ONLY: which rows we corrupted on purpose, plus the clean values behind them.
+
+    Used to GRADE the trust gate after it has made its decisions. Never pass this to
+    the gate or the model. Same row filtering as load_pings, so rows line up 1:1.
+    Returns voyage_id, timestamp, is_injected_defect, and clean lat/lon/sog/cog.
+    """
+    windows = list(windows) if windows is not None else [1, 2, 3, 4, 5, 6]
+    query = _REAL_QUERY.replace(
+        "s.source_tier, s.condition",
+        "s.source_tier, s.condition, s.is_injected_defect, "
+        "r.lat AS clean_lat, r.lon AS clean_lon, r.sog AS clean_sog, r.cog AS clean_cog",
+    ).replace(
+        "FROM stream s JOIN voyage_window v USING (voyage_id)",
+        "FROM stream s JOIN voyage_window v USING (voyage_id) "
+        "JOIN raw_reference_ais r ON r.voyage_id = s.voyage_id AND r.base_datetime = s.timestamp",
+    )
+    with connect(db_path) as con:
+        df = con.execute(query, {"condition": condition, "windows": windows}).df()
+    df = _clean_real(df)
+    return df[["voyage_id", "timestamp", "is_injected_defect", "clean_lat", "clean_lon", "clean_sog", "clean_cog"]]
 
 
 def defect_share_by_window(condition: str, db_path: Path = DB_PATH) -> pd.DataFrame:
