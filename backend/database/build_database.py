@@ -15,11 +15,14 @@ import requests
 import zstandard as zstd
 import zipfile
 import shutil
+import sys
+
+import pandas as pd
 
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 DB_PATH = ROOT_DIR / "backend" / "maritime_case.duckdb"
-MANIFEST_PATH = ROOT_DIR / "backend" / "manifest.json"
-MOD_LOG_PATH = ROOT_DIR / "backend" / "modification_log.json"
+MANIFEST_PATH = Path(__file__).resolve().parent / "manifest.json"
+MOD_LOG_PATH = Path(__file__).resolve().parent / "modification_log.json"
 TEMP_DIR = ROOT_DIR / "data_temp"
 
 # Bounding box & Filters for Chesapeake / Norfolk
@@ -37,6 +40,15 @@ HEADERS = {
         " like Gecko) Chrome/120.0.0.0 Safari/537.36"
     )
 }
+
+# Degradation settings (recorded in modification_log.json)
+RANDOM_SEED = 42
+TIER1_EVERY_N = 5  # every 5th ping of a voyage goes to the slow, accurate TIER1_ANCHOR feed (20%)
+STALE_LAG_PINGS = 10  # a stale ping repeats the report from 10 pings earlier (~12 min)
+STALE_RATES = {1: 0.0, 2: 0.15, 3: 0.30, 4: 0.50, 5: 0.70, 6: 0.70}
+NOISE_SIGMA_DEG = {1: 0.0, 2: 0.0005, 3: 0.0010, 4: 0.0020, 5: 0.0035, 6: 0.0035}
+SPIKE_FRACTION = 0.15  # share of noisy pings that also get SOG/COG spikes
+
 
 def init_tables(con: duckdb.DuckDBPyConnection):
   """Initializes DuckDB tables per Architecture.md."""
@@ -247,11 +259,25 @@ def download_and_stream_ingest(
     shutil.rmtree(TEMP_DIR, ignore_errors=True)
 
 
-def inject_degradations(con: duckdb.DuckDBPyConnection):
-  """Splits streams into TIER1_ANCHOR and TIER2_FAST, injecting the 4 experimental conditions."""
-  print(
-      "Generating injected streams (NOMINAL, STALE, LOW_QUALITY, COMBINED)..."
+def assign_source_tiers(df: pd.DataFrame) -> pd.Series:
+  """Split each voyage's pings between the two feeds.
+
+  Both feeds observe the SAME voyages, so the slow anchor feed can audit the
+  fast feed (the countermeasure needs this overlap). Within each voyage, every
+  TIER1_EVERY_N-th ping (1st, 6th, 11th, ...) is TIER1_ANCHOR (~20%, sparse,
+  clean); all other pings are TIER2_FAST (~80%, the feed that degrades).
+  `df` must be sorted by voyage_id, then time.
+  """
+  ping_number = df.groupby("voyage_id", sort=False).cumcount()
+  return pd.Series(
+      np.where(ping_number % TIER1_EVERY_N == 0, "TIER1_ANCHOR", "TIER2_FAST"),
+      index=df.index,
   )
+
+
+def inject_degradations(con: duckdb.DuckDBPyConnection):
+  """Builds injected_streams: 4 conditions x 2 feeds, defects only on TIER2_FAST in W2-W6."""
+  print("Generating injected streams (NOMINAL, STALE, LOW_QUALITY, COMBINED)...")
 
   df = con.execute("""
         SELECT voyage_id, mmsi, base_datetime, lat, lon, sog, cog, vessel_type, window_id
@@ -263,96 +289,77 @@ def inject_degradations(con: duckdb.DuckDBPyConnection):
     print("Warning: No records found to inject.")
     return
 
-  np.random.seed(42)
+  rng = np.random.default_rng(RANDOM_SEED)
+  df["source_tier"] = assign_source_tiers(df)
 
-  # 20% TIER1_ANCHOR voyages, 80% TIER2_FAST voyages
-  unique_voyages = df["voyage_id"].unique()
-  anchor_voyages = set(
-      np.random.choice(
-          unique_voyages, size=int(len(unique_voyages) * 0.2), replace=False
-      )
-  )
-  df["source_tier"] = df["voyage_id"].apply(
-      lambda v: "TIER1_ANCHOR" if v in anchor_voyages else "TIER2_FAST"
-  )
-
-  stale_rates = {1: 0.0, 2: 0.15, 3: 0.30, 4: 0.50, 5: 0.70, 6: 0.70}
-  noise_sigmas = {
-      1: 0.0,
-      2: 0.0005,
-      3: 0.0010,
-      4: 0.0020,
-      5: 0.0035,
-      6: 0.0035,
-  }
+  # The report from STALE_LAG_PINGS pings earlier in the same voyage (NaN if none).
+  earlier = df.groupby("voyage_id", sort=False)[["lat", "lon", "sog", "cog"]].shift(STALE_LAG_PINGS)
+  has_earlier = earlier["lat"].notna().to_numpy()
 
   records_to_insert = []
-  mod_stats = {"total_rows": len(df), "conditions": {}}
+  mod_stats = {
+      "total_rows": len(df),
+      "settings": {
+          "random_seed": RANDOM_SEED,
+          "tier_rule": f"every {TIER1_EVERY_N}th ping of each voyage -> TIER1_ANCHOR; rest -> TIER2_FAST",
+          "defects_applied_to": "TIER2_FAST only, windows W2-W6; TIER1_ANCHOR and W1 stay clean",
+          "stale_rule": f"lat/lon/sog/cog replaced by the report {STALE_LAG_PINGS} pings earlier, timestamp kept",
+          "stale_rates_by_window": STALE_RATES,
+          "noise_rule": "Gaussian noise on lat/lon (degrees) for every TIER2_FAST ping; "
+                        f"{SPIKE_FRACTION:.0%} also get SOG +5-15 kn and COG +30-90 deg",
+          "noise_sigma_deg_by_window": NOISE_SIGMA_DEG,
+      },
+      "conditions": {},
+  }
 
   for cond in ["NOMINAL", "STALE", "LOW_QUALITY", "COMBINED"]:
-    mod_stats["conditions"][cond] = {"stale_injected": 0, "noise_injected": 0}
+    stats = {"stale_injected": 0, "noise_injected": 0, "by_window": {}}
     df_cond = df.copy()
     df_cond["condition"] = cond
     df_cond["is_injected_defect"] = False
 
     for w_id in range(1, 7):
-      mask = (df_cond["window_id"] == w_id) & (
-          df_cond["source_tier"] == "TIER2_FAST"
-      )
-      sub_indices = df_cond[mask].index
+      w_stats = {"tier2_rows": 0, "stale_injected": 0, "noise_injected": 0}
+      tier2 = ((df_cond["window_id"] == w_id) & (df_cond["source_tier"] == "TIER2_FAST")).to_numpy()
+      sub_indices = np.flatnonzero(tier2)
       n_rows = len(sub_indices)
-      if n_rows == 0:
-        continue
+      w_stats["tier2_rows"] = n_rows
 
-      if cond in ["STALE", "COMBINED"] and w_id > 1:
-        stale_frac = stale_rates[w_id]
-        n_stale = int(n_rows * stale_frac)
-        stale_idx = np.random.choice(sub_indices, size=n_stale, replace=False)
+      if n_rows > 0 and cond in ["STALE", "COMBINED"] and w_id > 1:
+        n_stale = int(n_rows * STALE_RATES[w_id])
+        picked = rng.choice(sub_indices, size=n_stale, replace=False)
+        picked = picked[has_earlier[picked]]  # need 10 earlier pings in the voyage
+        for col in ["lat", "lon", "sog", "cog"]:
+          df_cond.iloc[picked, df_cond.columns.get_loc(col)] = earlier[col].to_numpy()[picked]
+        df_cond.iloc[picked, df_cond.columns.get_loc("is_injected_defect")] = True
+        w_stats["stale_injected"] = len(picked)
 
-        lag_steps = 10
-        for idx in stale_idx:
-          curr_voyage = df_cond.at[idx, "voyage_id"]
-          earlier = df_cond[
-              (df_cond["voyage_id"] == curr_voyage) & (df_cond.index < idx)
-          ]
-          if len(earlier) >= lag_steps:
-            chosen = earlier.iloc[-lag_steps]
-            df_cond.at[idx, "lat"] = chosen["lat"]
-            df_cond.at[idx, "lon"] = chosen["lon"]
-            df_cond.at[idx, "sog"] = chosen["sog"]
-            df_cond.at[idx, "cog"] = chosen["cog"]
-            df_cond.at[idx, "is_injected_defect"] = True
-            mod_stats["conditions"][cond]["stale_injected"] += 1
+      if n_rows > 0 and cond in ["LOW_QUALITY", "COMBINED"] and w_id > 1:
+        sigma = NOISE_SIGMA_DEG[w_id]
+        lat_col, lon_col = df_cond.columns.get_loc("lat"), df_cond.columns.get_loc("lon")
+        df_cond.iloc[sub_indices, lat_col] += rng.normal(0, sigma, size=n_rows)
+        df_cond.iloc[sub_indices, lon_col] += rng.normal(0, sigma, size=n_rows)
 
-      if cond in ["LOW_QUALITY", "COMBINED"] and w_id > 1:
-        sigma = noise_sigmas[w_id]
-        df_cond.loc[sub_indices, "lat"] += np.random.normal(
-            0, sigma, size=n_rows
-        )
-        df_cond.loc[sub_indices, "lon"] += np.random.normal(
-            0, sigma, size=n_rows
-        )
-
-        spike_idx = np.random.choice(
-            sub_indices, size=int(n_rows * 0.15), replace=False
-        )
-        df_cond.loc[spike_idx, "sog"] += np.random.uniform(
-            5.0, 15.0, size=len(spike_idx)
-        )
-        df_cond.loc[spike_idx, "cog"] = (
-            df_cond.loc[spike_idx, "cog"]
-            + np.random.uniform(30, 90, size=len(spike_idx))
+        spikes = rng.choice(sub_indices, size=int(n_rows * SPIKE_FRACTION), replace=False)
+        sog_col, cog_col = df_cond.columns.get_loc("sog"), df_cond.columns.get_loc("cog")
+        df_cond.iloc[spikes, sog_col] += rng.uniform(5.0, 15.0, size=len(spikes))
+        df_cond.iloc[spikes, cog_col] = (
+            df_cond.iloc[spikes, cog_col].to_numpy() + rng.uniform(30, 90, size=len(spikes))
         ) % 360
-        df_cond.loc[sub_indices, "is_injected_defect"] = True
-        mod_stats["conditions"][cond]["noise_injected"] += len(sub_indices)
+        df_cond.iloc[sub_indices, df_cond.columns.get_loc("is_injected_defect")] = True
+        w_stats["noise_injected"] = n_rows
 
+      stats["stale_injected"] += w_stats["stale_injected"]
+      stats["noise_injected"] += w_stats["noise_injected"]
+      stats["by_window"][w_id] = w_stats
+
+    mod_stats["conditions"][cond] = stats
     records_to_insert.append(df_cond)
 
-  import pandas as pd
-
   combined_df = pd.concat(records_to_insert, ignore_index=True)
-  combined_df.rename(columns={"base_datetime": "timestamp"}, inplace=True)
+  combined_df = combined_df.rename(columns={"base_datetime": "timestamp"})
 
+  con.execute("DELETE FROM injected_streams")  # rebuild from scratch, never append twice
   con.register(
       "tmp_injected",
       combined_df[[
@@ -371,19 +378,42 @@ def inject_degradations(con: duckdb.DuckDBPyConnection):
       ]],
   )
   con.execute("INSERT INTO injected_streams SELECT * FROM tmp_injected")
+  con.unregister("tmp_injected")
+
+  # Problems already present in the source data (not introduced by us), logged separately.
+  mod_stats["observed_source_issues"] = {
+      "duplicate_timestamps_within_voyage": int(con.execute("""
+          SELECT COUNT(*) FROM (SELECT voyage_id, base_datetime FROM raw_reference_ais
+                                GROUP BY ALL HAVING COUNT(*) > 1)""").fetchone()[0]),
+      "rows_with_missing_cog": int(con.execute(
+          "SELECT COUNT(*) FROM raw_reference_ais WHERE cog IS NULL").fetchone()[0]),
+      "voyages_spanning_two_windows": int(con.execute("""
+          SELECT COUNT(*) FROM (SELECT voyage_id FROM raw_reference_ais
+                                GROUP BY 1 HAVING COUNT(DISTINCT window_id) > 1)""").fetchone()[0]),
+  }
 
   with open(MOD_LOG_PATH, "w") as f:
     json.dump(mod_stats, f, indent=2)
 
 
-def export_manifest(con: duckdb.DuckDBPyConnection):
-  """Exports manifest.json required by Requirement 2."""
+def export_manifest(con: duckdb.DuckDBPyConnection, retrieval_date: str | None = None):
+  """Exports manifest.json (Requirement 2 / minimum data manifest), computed from the database."""
+  one = lambda sql: con.execute(sql).fetchone()[0]
+  first_ts, last_ts = con.execute(
+      "SELECT MIN(base_datetime), MAX(base_datetime) FROM raw_reference_ais").fetchone()
+  windows = con.execute("""
+      SELECT window_id, COUNT(DISTINCT voyage_id), COUNT(*), MIN(base_datetime), MAX(base_datetime)
+      FROM raw_reference_ais GROUP BY 1 ORDER BY 1""").fetchall()
+  vessel_types = con.execute("""
+      SELECT vessel_type, COUNT(DISTINCT voyage_id) FROM raw_reference_ais
+      GROUP BY 1 ORDER BY 2 DESC""").fetchall()
   meta = {
       "dataset_name": (
           "MarineCadastre AIS 2025 (Chesapeake Bay & Norfolk Corridor)"
       ),
       "source_url": NOAA_BASE_URL,
-      "retrieval_date": datetime.now().strftime("%Y-%m-%d"),
+      "retrieval_date": retrieval_date or datetime.now().strftime("%Y-%m-%d"),
+      "date_range_utc": [str(first_ts), str(last_ts)],
       "spatial_bounding_box": {
           "lat_min": LAT_MIN,
           "lat_max": LAT_MAX,
@@ -396,13 +426,19 @@ def export_manifest(con: duckdb.DuckDBPyConnection):
           "Tanker (80-89)",
       ],
       "minimum_sog_knots": MIN_SOG,
+      "voyage_rule": "new voyage when the same MMSI has a gap > 30 min between pings",
+      "window_rule": "NTILE(6) over pings ordered by voyage start time (equal ping counts per window)",
       "chronological_windows": 6,
-      "total_reference_pings": con.execute(
-          "SELECT COUNT(*) FROM raw_reference_ais"
-      ).fetchone()[0],
-      "unique_voyages": con.execute(
-          "SELECT COUNT(DISTINCT voyage_id) FROM raw_reference_ais"
-      ).fetchone()[0],
+      "total_reference_pings": one("SELECT COUNT(*) FROM raw_reference_ais"),
+      "unique_voyages": one("SELECT COUNT(DISTINCT voyage_id) FROM raw_reference_ais"),
+      "unique_vessels": one("SELECT COUNT(DISTINCT mmsi) FROM raw_reference_ais"),
+      "windows": [
+          {"window_id": w, "voyages": v, "pings": n, "first_ping_utc": str(a), "last_ping_utc": str(b)}
+          for w, v, n, a, b in windows
+      ],
+      "voyages_by_vessel_type_code": {str(t): n for t, n in vessel_types},
+      "missing_value_treatment": "pings with SOG <= 0.5 kn removed; rows with missing COG kept as-is",
+      "injected_streams": "see modification_log.json (simulated degradations, not real feed failures)",
       "license": "Public Domain (U.S. Government NOAA/BOEM work)",
   }
   with open(MANIFEST_PATH, "w") as f:
@@ -410,14 +446,24 @@ def export_manifest(con: duckdb.DuckDBPyConnection):
 
 
 if __name__ == "__main__":
+  # Full build:   uv run python backend/database/build_database.py
+  # Re-inject only (keeps downloaded data, rebuilds injected_streams + manifest + log):
+  #               uv run python backend/database/build_database.py --reinject
   con = duckdb.connect(str(DB_PATH))
-  init_tables(con)
+  if "--reinject" in sys.argv:
+    previous_date = None
+    if MANIFEST_PATH.exists():
+      previous_date = json.loads(MANIFEST_PATH.read_text()).get("retrieval_date")
+    inject_degradations(con)
+    export_manifest(con, retrieval_date=previous_date)
+  else:
+    init_tables(con)
 
-  # Target date range: 6 weeks starting Sep 1, 2025
-  start_dt = date(2025, 9, 1)
-  download_and_stream_ingest(con, start_date=start_dt, days=12)
+    # Target date range: 12 days starting Sep 1, 2025
+    start_dt = date(2025, 9, 1)
+    download_and_stream_ingest(con, start_date=start_dt, days=12)
 
-  inject_degradations(con)
-  export_manifest(con)
+    inject_degradations(con)
+    export_manifest(con)
   con.close()
   print("Database pipeline complete.")

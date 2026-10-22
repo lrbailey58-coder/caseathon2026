@@ -1,7 +1,11 @@
 {
   "dataset_name": "MarineCadastre AIS 2025 (Chesapeake Bay & Norfolk Corridor)",
-  "source_url": "https://noaaocm.blob.core.windows.net/ais/csv2/csv2025/index.html",
+  "source_url": "https://noaaocm.blob.core.windows.net/ais/csv2/csv2025",
   "retrieval_date": "2026-10-22",
+  "date_range_utc": [
+    "2025-09-01 00:00:00",
+    "2025-09-12 23:59:59"
+  ],
   "spatial_bounding_box": {
     "lat_min": 36.8,
     "lat_max": 37.3,
@@ -14,8 +18,73 @@
     "Tanker (80-89)"
   ],
   "minimum_sog_knots": 0.5,
+  "voyage_rule": "new voyage when the same MMSI has a gap > 30 min between pings",
+  "window_rule": "NTILE(6) over pings ordered by voyage start time (equal ping counts per window)",
   "chronological_windows": 6,
-  "total_reference_pings": 9563,
-  "unique_voyages": 132,
+  "total_reference_pings": 190149,
+  "unique_voyages": 2841,
+  "unique_vessels": 291,
+  "windows": [
+    {
+      "window_id": 1,
+      "voyages": 423,
+      "pings": 31692,
+      "first_ping_utc": "2025-09-01 00:00:00",
+      "last_ping_utc": "2025-09-04 21:55:47"
+    },
+    {
+      "window_id": 2,
+      "voyages": 523,
+      "pings": 31692,
+      "first_ping_utc": "2025-09-03 01:56:51",
+      "last_ping_utc": "2025-09-05 21:56:48"
+    },
+    {
+      "window_id": 3,
+      "voyages": 432,
+      "pings": 31692,
+      "first_ping_utc": "2025-09-04 23:26:23",
+      "last_ping_utc": "2025-09-07 12:35:09"
+    },
+    {
+      "window_id": 4,
+      "voyages": 528,
+      "pings": 31691,
+      "first_ping_utc": "2025-09-06 17:49:25",
+      "last_ping_utc": "2025-09-09 06:35:36"
+    },
+    {
+      "window_id": 5,
+      "voyages": 503,
+      "pings": 31691,
+      "first_ping_utc": "2025-09-09 02:44:11",
+      "last_ping_utc": "2025-09-11 12:27:17"
+    },
+    {
+      "window_id": 6,
+      "voyages": 437,
+      "pings": 31691,
+      "first_ping_utc": "2025-09-11 06:37:21",
+      "last_ping_utc": "2025-09-12 23:59:59"
+    }
+  ],
+  "voyages_by_vessel_type_code": {
+    "52": 1328,
+    "31": 891,
+    "70": 303,
+    "32": 116,
+    "71": 61,
+    "74": 58,
+    "79": 28,
+    "80": 27,
+    "72": 11,
+    "73": 8,
+    "77": 4,
+    "86": 3,
+    "89": 2,
+    "82": 1
+  },
+  "missing_value_treatment": "pings with SOG <= 0.5 kn removed; rows with missing COG kept as-is",
+  "injected_streams": "see modification_log.json (simulated degradations, not real feed failures)",
   "license": "Public Domain (U.S. Government NOAA/BOEM work)"
 }
