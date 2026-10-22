@@ -13,7 +13,11 @@ For each condition (NOMINAL, STALE, LOW_QUALITY, COMBINED) we replay the weeks:
 
 Each step is run twice on the SAME training buffer and the SAME test cases:
     gate OFF ("naive retraining"): learn from everything that arrived, corrupted rows included.
-    gate ON  (countermeasure):     the trust gate (gate.py) first drops suspect fast-feed pings.
+    gate ON  (countermeasure):     the trust gate (gate.py) first drops suspect fast-feed pings,
+                                   and uncertain predictions are handed to a human (uncertainty.py).
+
+Error numbers (displacement_mae_m, tail_95_error_m) are always over ALL test predictions,
+deferred ones included, so handing work to a human can't make the AI look better.
 
 The training buffer at each step = all pings (both feeds) from earlier windows with a
 timestamp before the moment of retraining (the test window's first ping). The slow
@@ -40,7 +44,8 @@ from backend.ml.data import CONDITIONS, REPO_ROOT, defect_share_by_window, load_
 from backend.ml.features import HORIZON_S, dead_reckoning_offsets, make_dataset
 from backend.ml.gate import apply_gate, compare_to_anchor, learn_limits
 from backend.ml.model_store import save_models
-from backend.ml.train_baseline import lgbm_params, predict_offsets, score, train_models
+from backend.ml.train_baseline import errors_m, lgbm_params, predict_offsets, score, train_models
+from backend.ml.uncertainty import SAFETY_RADIUS_M, evaluate_deferral, predict_range, train_uncertainty_models
 
 TEST_WINDOWS = [2, 3, 4, 5, 6]
 ANCHOR_DELAY_MIN = 45  # the slow, accurate feed arrives 30-60 min late (Architecture.md)
@@ -91,6 +96,10 @@ def run_rolling(conditions: list[str], seed: int = 42, source: str = "real") -> 
                 north, east = predict_offsets(models, test)
                 predict_ms = (time.perf_counter() - start) * 1000
                 ai = score(test, north, east)
+                deferral = None
+                if mitigated:
+                    range_models = train_uncertainty_models(train, lgbm_params(seed))
+                    deferral = evaluate_deferral(test, errors_m(test, north, east), predict_range(range_models, test))
 
                 buf = defects.loc[defects.index < test_w]  # REPORTING ONLY, never given to the model
                 rows.append({
@@ -110,7 +119,8 @@ def run_rolling(conditions: list[str], seed: int = 42, source: str = "real") -> 
                     "data_discarded_pct": round(100.0 * (1 - len(kept) / len(buffer)), 2) if mitigated else 0.0,
                     "newest_window_discarded_pct": (
                         round(100.0 * scored.loc[newest, "suspect"].mean(), 2) if mitigated else 0.0),
-                    "decisions_deferred_pct": 0.0,  # human hand-off is added in step 5
+                    "decisions_deferred_pct": deferral["decisions_deferred_pct"] if mitigated else 0.0,
+                    "deferral": deferral,
                     "train_buffer_corrupted_pct": round(100.0 * buf["corrupted_rows"].sum() / buf["rows"].sum(), 2),
                     "predict_total_ms": round(predict_ms, 2),
                     "predict_ms_per_row": round(predict_ms / len(test), 5),
@@ -121,9 +131,11 @@ def run_rolling(conditions: list[str], seed: int = 42, source: str = "real") -> 
 
                 if test_w == TEST_WINDOWS[-1]:  # keep the final W1-W5 models for the app
                     tag = "gated" if mitigated else "unmitigated"
-                    save_models(models, f"rolling_{tag}_{condition.lower()}_{source}", info={
+                    bundle = {**models, "uncertainty": range_models} if mitigated else models
+                    save_models(bundle, f"rolling_{tag}_{condition.lower()}_{source}", info={
                         "condition": condition, "mitigated": mitigated, "train_windows": "W1-W5",
-                        "source": source, "seed": seed, "gate_limits": limits})
+                        "source": source, "seed": seed, "gate_limits": limits,
+                        "safety_radius_m": SAFETY_RADIUS_M if mitigated else None})
         print(f"  {condition} done in {time.perf_counter() - t0:.0f} s")
 
     return {
@@ -135,7 +147,9 @@ def run_rolling(conditions: list[str], seed: int = 42, source: str = "real") -> 
             "steps": "retrain on what arrived in W1..Wk -> test W(k+1), for k = 1..5",
             "buffer": f"both feeds, earlier windows, timestamp before retraining; anchor feed delayed {ANCHOR_DELAY_MIN} min",
             "gate_off": "train on the whole buffer (naive retraining)",
-            "gate_on": "trust gate drops suspect fast-feed pings first; limits learned from W1 only",
+            "gate_on": "trust gate drops suspect fast-feed pings first; limits learned from W1 only; "
+                       f"predictions with a 90% range radius > {SAFETY_RADIUS_M:.0f} m are deferred to a human",
+            "error_metric_scope": "all test predictions, deferred ones included",
             "test_data": "clean NOMINAL inputs and true positions, identical for all runs",
             "poisoning_stage": "training-time (retraining buffer); test-time inputs are clean",
             "no_future_rule": "train rows need their 15-min answer before retraining",
@@ -169,6 +183,20 @@ def print_tables(result: dict) -> None:
     t = df[df["mitigated"]].pivot(index="window_id", columns="condition", values="data_discarded_pct")[conds]
     t.index = [f"test W{w}" for w in t.index]
     print(f"\nData thrown out by the gate (% of training buffer)\n{t.round(1).to_string()}")
+
+    on = df[df["mitigated"]]
+    d = pd.DataFrame(list(on["deferral"]), index=on.index).join(on[["condition", "window_id"]])
+    t = d.pivot(index="window_id", columns="condition", values="decisions_deferred_pct")[conds]
+    t.index = [f"test W{w}" for w in t.index]
+    print(f"\nPredictions handed to a human (%), safety radius {SAFETY_RADIUS_M:.0f} m\n{t.round(1).to_string()}")
+    w6 = d[d["window_id"] == TEST_WINDOWS[-1]].set_index("condition").loc[conds]
+    cols = ["decisions_deferred_pct", "accepted_mae_m", "deferred_mae_m", "worst_10pct_deferred_pct",
+            "range_coverage_north_pct", "range_coverage_east_pct"]
+    w6t = w6[cols].astype(float).round(1)
+    w6t.columns = ["handed off %", "avg err kept (m)", "avg err handed off (m)", "worst 10% handed off %",
+                   "range hit N %", "range hit E %"]
+    print(f"\nW6 hand-off detail (gate on)\n{w6t.to_string()}")
+    print("  handed off % by ship type:", {c: w6.loc[c, "deferred_pct_by_ship_type"] for c in conds})
 
     if "NOMINAL" in conds:
         last = df[df["window_id"] == TEST_WINDOWS[-1]].set_index("run")
