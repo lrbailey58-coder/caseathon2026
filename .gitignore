@@ -33,3 +33,6 @@ frontend/.vite/
 frontend/.env
 frontend/.env.*
 !frontend/.env.example
+
+# Trained models (rebuild by re-running backend/ml scripts)
+models/
