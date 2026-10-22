@@ -10,10 +10,18 @@ requires-python = ">=3.13"
 dependencies = [
     "duckdb>=1.5.6",
     "fastapi>=0.156.4",
+<<<<<<< HEAD
     "numpy>=2.5.4",
     "pandas>=3.1.0",
     "pydantic>=2.14.1",
     "requests>=2.34.2",
+=======
+    "lightgbm>=4.7.0",
+    "numpy>=2.5.4",
+    "pandas>=3.0.6",
+    "pydantic>=2.14.1",
+    "scikit-learn>=1.9.1",
+>>>>>>> 846f34fa894f33341a667f48864c9a482c9914c2
     "uvicorn[standard]>=0.54.0",
     "zstandard>=0.25.0",
 ]

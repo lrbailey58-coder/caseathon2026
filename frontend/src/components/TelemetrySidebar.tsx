@@ -15,6 +15,8 @@ import {
   ComposedChart,
   Legend,
   Line,
+  ReferenceArea,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -35,6 +37,7 @@ interface TelemetrySidebarProps {
 
 export function TelemetrySidebar({ scenario, onSubmitOverride }: TelemetrySidebarProps) {
   const { metrics, timeline_series, hitl_alert, condition, window: windowNum, mitigated } = scenario
+  const selectedWindowKey = `W${windowNum}`
 
   // Live Watch Officer inspection stopwatch (resets when scenario selection changes)
   const [reviewSeconds, setReviewSeconds] = useState<number>(0)
@@ -69,9 +72,14 @@ export function TelemetrySidebar({ scenario, onSubmitOverride }: TelemetrySideba
               <Gauge className="h-4 w-4 text-cyan-400" />
               1. Telemetry &amp; Workload Metrics ({scenario.window_label.split(':')[0]})
             </CardTitle>
-            <Badge variant={mitigated ? 'default' : 'rose'}>
-              {mitigated ? 'Mitigated' : 'Unmitigated'}
-            </Badge>
+            <div className="flex items-center gap-1.5">
+              {windowNum === 6 && (
+                <Badge variant="amber">Unseen Test Period</Badge>
+              )}
+              <Badge variant={mitigated ? 'default' : 'rose'}>
+                {mitigated ? 'Mitigated' : 'Unmitigated'}
+              </Badge>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-3">
@@ -171,13 +179,24 @@ export function TelemetrySidebar({ scenario, onSubmitOverride }: TelemetrySideba
             </CardTitle>
             <span className="text-[10px] font-mono text-slate-400">MAE (m) vs Poison Vol (%)</span>
           </div>
+          {/* Regime Legend: W1-W5 Training Drift vs W6 Unseen Evaluation */}
+          <div className="flex items-center justify-between pt-1 text-[10px] font-mono">
+            <span className="inline-flex items-center gap-1.5 text-slate-300">
+              <span className="h-2 w-2 rounded-full bg-cyan-400/80 inline-block" />
+              W1–W5: Rolling Training Drift
+            </span>
+            <span className="inline-flex items-center gap-1.5 text-amber-300">
+              <span className="h-2 w-2 rounded-full bg-amber-400 inline-block" />
+              W6: Unseen Test Period
+            </span>
+          </div>
         </CardHeader>
         <CardContent className="p-2.5">
-          <div className="h-48 w-full">
+          <div className="h-52 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart
                 data={timeline_series}
-                margin={{ top: 8, right: 8, left: -16, bottom: 0 }}
+                margin={{ top: 16, right: 8, left: -16, bottom: 0 }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
                 <XAxis
@@ -209,8 +228,46 @@ export function TelemetrySidebar({ scenario, onSubmitOverride }: TelemetrySideba
                     fontSize: '11px',
                     fontFamily: 'monospace',
                   }}
+                  labelFormatter={(label) =>
+                    label === 'W6'
+                      ? 'W6: Unseen Test Period (Holdout Evaluation)'
+                      : `${String(label)}: Rolling Retraining Window`
+                  }
                 />
                 <Legend wrapperStyle={{ fontSize: '11px', fontFamily: 'monospace' }} />
+
+                {/* Distinguish Training Drift (W1..W5) vs Unseen Evaluation Period (W6) */}
+                <ReferenceArea
+                  yAxisId="left"
+                  x1="W1"
+                  x2="W5"
+                  fill="#0ea5e9"
+                  fillOpacity={0.04}
+                />
+                <ReferenceArea
+                  yAxisId="left"
+                  x1="W5"
+                  x2="W6"
+                  fill="#f59e0b"
+                  fillOpacity={0.12}
+                />
+
+                {/* Dynamic ReferenceLine highlighting the currently selected window */}
+                <ReferenceLine
+                  yAxisId="left"
+                  x={selectedWindowKey}
+                  stroke={windowNum === 6 ? '#f59e0b' : '#22d3ee'}
+                  strokeWidth={2}
+                  strokeDasharray="4 3"
+                  label={{
+                    value: windowNum === 6 ? 'ACTIVE: W6 TEST' : `ACTIVE: ${selectedWindowKey}`,
+                    position: 'top',
+                    fill: windowNum === 6 ? '#fbbf24' : '#67e8f9',
+                    fontSize: 10,
+                    fontFamily: 'monospace',
+                  }}
+                />
+
                 <Area
                   yAxisId="right"
                   type="monotone"
@@ -229,6 +286,7 @@ export function TelemetrySidebar({ scenario, onSubmitOverride }: TelemetrySideba
                   stroke="#f43f5e"
                   strokeWidth={2.2}
                   dot={{ r: 3 }}
+                  activeDot={{ r: 5 }}
                 />
                 <Line
                   yAxisId="left"
@@ -238,6 +296,7 @@ export function TelemetrySidebar({ scenario, onSubmitOverride }: TelemetrySideba
                   stroke="#22d3ee"
                   strokeWidth={2.5}
                   dot={{ r: 3 }}
+                  activeDot={{ r: 5 }}
                 />
               </ComposedChart>
             </ResponsiveContainer>

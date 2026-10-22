@@ -1,4 +1,10 @@
-import type { ConditionType, LatLon, ScenarioData } from '@/types/maritime'
+import type {
+  ConditionType,
+  LatLon,
+  MatrixRunEntry,
+  MatrixSummaryData,
+  ScenarioData,
+} from '@/types/maritime'
 
 const BASE_GROUND_TRUTH_TRACK: LatLon[] = [
   [36.952, -75.985],
@@ -76,7 +82,14 @@ const WINDOW_LABELS: Record<number, string> = {
   3: 'W3: Moderate Poisoning',
   4: 'W4: Heavy Retraining Drift',
   5: 'W5: Severe Channel Excursion',
-  6: 'W6: Unseen Evaluation Period',
+  6: 'W6: Unseen Test Period',
+}
+
+const CONDITION_LABELS: Record<ConditionType, string> = {
+  NOMINAL: 'Reference / Nominal',
+  STALE: 'Stale Only',
+  LOW_QUALITY: 'Low-Quality Only',
+  COMBINED: 'Combined Poisoning',
 }
 
 export function buildFallbackScenario(
@@ -196,3 +209,55 @@ export function buildFallbackScenario(
     },
   }
 }
+
+export function buildFallbackMatrixSummary(window: number = 6): MatrixSummaryData {
+  const wIdx = Math.max(0, Math.min(5, window - 1))
+  const conditions: ConditionType[] = ['NOMINAL', 'STALE', 'LOW_QUALITY', 'COMBINED']
+  const runs: MatrixRunEntry[] = []
+
+  let runId = 1
+  for (const cond of conditions) {
+    const table = ERROR_PROGRESSION[cond]
+    const unmitMae = table.unmitigated_mae[wIdx]
+
+    for (const isMitigated of [false, true]) {
+      const mae = isMitigated ? table.mitigated_mae[wIdx] : unmitMae
+      const tail95 = isMitigated
+        ? table.tail_95_mitigated[wIdx]
+        : table.tail_95_unmitigated[wIdx]
+      const discarded = isMitigated ? table.discarded_pct[wIdx] : 0
+      const deferred = isMitigated ? table.deferred_pct[wIdx] : 0
+      const recoveryGain =
+        isMitigated && unmitMae > 0
+          ? Number((((unmitMae - mae) / unmitMae) * 100).toFixed(1))
+          : 0
+      const latencyMs = Number((11.8 + (isMitigated ? 1.6 : 0) + 0.2 * wIdx).toFixed(1))
+
+      runs.push({
+        run_id: runId++,
+        condition: cond,
+        condition_label: CONDITION_LABELS[cond],
+        mitigated: isMitigated,
+        defense_label: isMitigated
+          ? 'With Countermeasure (Anchor + HITL)'
+          : 'Without Countermeasure (Naive)',
+        window,
+        window_label: WINDOW_LABELS[window] ?? `W${window}`,
+        displacement_mae_m: mae,
+        tail_95_error_m: tail95,
+        data_discarded_pct: discarded,
+        decisions_deferred_pct: deferred,
+        recovery_gain_pct: recoveryGain,
+        model_compute_latency_ms: latencyMs,
+      })
+    }
+  }
+
+  return {
+    window,
+    window_label: WINDOW_LABELS[window] ?? `W${window}`,
+    avg_human_review_s: 8.4,
+    runs,
+  }
+}
+
