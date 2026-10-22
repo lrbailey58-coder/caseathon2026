@@ -1,0 +1,21 @@
+{
+  "total_rows": 9563,
+  "conditions": {
+    "NOMINAL": {
+      "stale_injected": 0,
+      "noise_injected": 0
+    },
+    "STALE": {
+      "stale_injected": 2628,
+      "noise_injected": 0
+    },
+    "LOW_QUALITY": {
+      "stale_injected": 0,
+      "noise_injected": 6509
+    },
+    "COMBINED": {
+      "stale_injected": 2605,
+      "noise_injected": 6509
+    }
+  }
+}
