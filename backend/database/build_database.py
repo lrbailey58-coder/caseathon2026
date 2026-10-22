@@ -16,7 +16,7 @@ import zstandard as zstd
 import zipfile
 import shutil
 
-ROOT_DIR = Path(__file__).resolve().parent.parent
+ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 DB_PATH = ROOT_DIR / "backend" / "maritime_case.duckdb"
 MANIFEST_PATH = ROOT_DIR / "backend" / "manifest.json"
 MOD_LOG_PATH = ROOT_DIR / "backend" / "modification_log.json"
@@ -61,17 +61,18 @@ def init_tables(con: duckdb.DuckDBPyConnection):
     );
 
     CREATE TABLE injected_streams (
-        voyage_id VARCHAR,
         mmsi BIGINT,
+        voyage_id VARCHAR,
         timestamp TIMESTAMP,
         lat DOUBLE,
         lon DOUBLE,
         sog DOUBLE,
         cog DOUBLE,
-        source_tier VARCHAR,    -- 'TIER1_ANCHOR' | 'TIER2_FAST'
-        condition VARCHAR,      -- 'NOMINAL' | 'STALE' | 'LOW_QUALITY' | 'COMBINED'
-        window_id INTEGER,      -- 1 to 6
-        is_defective BOOLEAN    -- Hidden from model training/inference
+        vessel_type VARCHAR,         -- ADDED: So Person 2 can filter ship types
+        window_id INTEGER,           -- 1 to 6
+        source_tier VARCHAR,         -- 'TIER1_ANCHOR' | 'TIER2_FAST'
+        condition VARCHAR,           -- 'NOMINAL' | 'STALE' | 'LOW_QUALITY' | 'COMBINED'
+        is_injected_defect BOOLEAN   -- RENAMED: Hidden from model training/inference
     );
 
     CREATE TABLE experiment_metrics (
@@ -253,7 +254,7 @@ def inject_degradations(con: duckdb.DuckDBPyConnection):
   )
 
   df = con.execute("""
-        SELECT voyage_id, mmsi, base_datetime, lat, lon, sog, cog, window_id
+        SELECT voyage_id, mmsi, base_datetime, lat, lon, sog, cog, vessel_type, window_id
         FROM raw_reference_ais
         ORDER BY voyage_id, base_datetime
     """).df()
@@ -292,7 +293,7 @@ def inject_degradations(con: duckdb.DuckDBPyConnection):
     mod_stats["conditions"][cond] = {"stale_injected": 0, "noise_injected": 0}
     df_cond = df.copy()
     df_cond["condition"] = cond
-    df_cond["is_defective"] = False
+    df_cond["is_injected_defect"] = False
 
     for w_id in range(1, 7):
       mask = (df_cond["window_id"] == w_id) & (
@@ -320,7 +321,7 @@ def inject_degradations(con: duckdb.DuckDBPyConnection):
             df_cond.at[idx, "lon"] = chosen["lon"]
             df_cond.at[idx, "sog"] = chosen["sog"]
             df_cond.at[idx, "cog"] = chosen["cog"]
-            df_cond.at[idx, "is_defective"] = True
+            df_cond.at[idx, "is_injected_defect"] = True
             mod_stats["conditions"][cond]["stale_injected"] += 1
 
       if cond in ["LOW_QUALITY", "COMBINED"] and w_id > 1:
@@ -342,7 +343,7 @@ def inject_degradations(con: duckdb.DuckDBPyConnection):
             df_cond.loc[spike_idx, "cog"]
             + np.random.uniform(30, 90, size=len(spike_idx))
         ) % 360
-        df_cond.loc[sub_indices, "is_defective"] = True
+        df_cond.loc[sub_indices, "is_injected_defect"] = True
         mod_stats["conditions"][cond]["noise_injected"] += len(sub_indices)
 
     records_to_insert.append(df_cond)
@@ -355,17 +356,18 @@ def inject_degradations(con: duckdb.DuckDBPyConnection):
   con.register(
       "tmp_injected",
       combined_df[[
-          "voyage_id",
           "mmsi",
+          "voyage_id",
           "timestamp",
           "lat",
           "lon",
           "sog",
           "cog",
+          "vessel_type",
+          "window_id",
           "source_tier",
           "condition",
-          "window_id",
-          "is_defective",
+          "is_injected_defect",
       ]],
   )
   con.execute("INSERT INTO injected_streams SELECT * FROM tmp_injected")

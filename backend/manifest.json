@@ -1,0 +1,21 @@
+{
+  "dataset_name": "MarineCadastre AIS 2025 (Chesapeake Bay & Norfolk Corridor)",
+  "source_url": "https://noaaocm.blob.core.windows.net/ais/csv2/csv2025",
+  "retrieval_date": "2026-10-22",
+  "spatial_bounding_box": {
+    "lat_min": 36.8,
+    "lat_max": 37.3,
+    "lon_min": -76.6,
+    "lon_max": -75.8
+  },
+  "vessel_cohorts": [
+    "Tug/Towing (31, 32, 52)",
+    "Cargo (70-79)",
+    "Tanker (80-89)"
+  ],
+  "minimum_sog_knots": 0.5,
+  "chronological_windows": 6,
+  "total_reference_pings": 190149,
+  "unique_voyages": 2841,
+  "license": "Public Domain (U.S. Government NOAA/BOEM work)"
+}
