@@ -1,0 +1,177 @@
+{
+  "total_rows": 190149,
+  "settings": {
+    "random_seed": 42,
+    "tier_rule": "every 5th ping of each voyage -> TIER1_ANCHOR; rest -> TIER2_FAST",
+    "defects_applied_to": "TIER2_FAST only, windows W2-W6; TIER1_ANCHOR and W1 stay clean",
+    "stale_rule": "lat/lon/sog/cog replaced by the report 10 pings earlier, timestamp kept",
+    "stale_rates_by_window": {
+      "1": 0.0,
+      "2": 0.15,
+      "3": 0.3,
+      "4": 0.5,
+      "5": 0.7,
+      "6": 0.7
+    },
+    "noise_rule": "Gaussian noise on lat/lon (degrees) for every TIER2_FAST ping; 15% also get SOG +5-15 kn and COG +30-90 deg",
+    "noise_sigma_deg_by_window": {
+      "1": 0.0,
+      "2": 0.0005,
+      "3": 0.001,
+      "4": 0.002,
+      "5": 0.0035,
+      "6": 0.0035
+    }
+  },
+  "conditions": {
+    "NOMINAL": {
+      "stale_injected": 0,
+      "noise_injected": 0,
+      "by_window": {
+        "1": {
+          "tier2_rows": 25167,
+          "stale_injected": 0,
+          "noise_injected": 0
+        },
+        "2": {
+          "tier2_rows": 25126,
+          "stale_injected": 0,
+          "noise_injected": 0
+        },
+        "3": {
+          "tier2_rows": 25146,
+          "stale_injected": 0,
+          "noise_injected": 0
+        },
+        "4": {
+          "tier2_rows": 25128,
+          "stale_injected": 0,
+          "noise_injected": 0
+        },
+        "5": {
+          "tier2_rows": 25125,
+          "stale_injected": 0,
+          "noise_injected": 0
+        },
+        "6": {
+          "tier2_rows": 25181,
+          "stale_injected": 0,
+          "noise_injected": 0
+        }
+      }
+    },
+    "STALE": {
+      "stale_injected": 51811,
+      "noise_injected": 0,
+      "by_window": {
+        "1": {
+          "tier2_rows": 25167,
+          "stale_injected": 0,
+          "noise_injected": 0
+        },
+        "2": {
+          "tier2_rows": 25126,
+          "stale_injected": 3266,
+          "noise_injected": 0
+        },
+        "3": {
+          "tier2_rows": 25146,
+          "stale_injected": 6750,
+          "noise_injected": 0
+        },
+        "4": {
+          "tier2_rows": 25128,
+          "stale_injected": 10856,
+          "noise_injected": 0
+        },
+        "5": {
+          "tier2_rows": 25125,
+          "stale_injected": 15343,
+          "noise_injected": 0
+        },
+        "6": {
+          "tier2_rows": 25181,
+          "stale_injected": 15596,
+          "noise_injected": 0
+        }
+      }
+    },
+    "LOW_QUALITY": {
+      "stale_injected": 0,
+      "noise_injected": 125706,
+      "by_window": {
+        "1": {
+          "tier2_rows": 25167,
+          "stale_injected": 0,
+          "noise_injected": 0
+        },
+        "2": {
+          "tier2_rows": 25126,
+          "stale_injected": 0,
+          "noise_injected": 25126
+        },
+        "3": {
+          "tier2_rows": 25146,
+          "stale_injected": 0,
+          "noise_injected": 25146
+        },
+        "4": {
+          "tier2_rows": 25128,
+          "stale_injected": 0,
+          "noise_injected": 25128
+        },
+        "5": {
+          "tier2_rows": 25125,
+          "stale_injected": 0,
+          "noise_injected": 25125
+        },
+        "6": {
+          "tier2_rows": 25181,
+          "stale_injected": 0,
+          "noise_injected": 25181
+        }
+      }
+    },
+    "COMBINED": {
+      "stale_injected": 51857,
+      "noise_injected": 125706,
+      "by_window": {
+        "1": {
+          "tier2_rows": 25167,
+          "stale_injected": 0,
+          "noise_injected": 0
+        },
+        "2": {
+          "tier2_rows": 25126,
+          "stale_injected": 3271,
+          "noise_injected": 25126
+        },
+        "3": {
+          "tier2_rows": 25146,
+          "stale_injected": 6745,
+          "noise_injected": 25146
+        },
+        "4": {
+          "tier2_rows": 25128,
+          "stale_injected": 10856,
+          "noise_injected": 25128
+        },
+        "5": {
+          "tier2_rows": 25125,
+          "stale_injected": 15366,
+          "noise_injected": 25125
+        },
+        "6": {
+          "tier2_rows": 25181,
+          "stale_injected": 15619,
+          "noise_injected": 25181
+        }
+      }
+    }
+  },
+  "observed_source_issues": {
+    "duplicate_timestamps_within_voyage": 202,
+    "rows_with_missing_cog": 33,
+    "voyages_spanning_two_windows": 5
+  }
+}
