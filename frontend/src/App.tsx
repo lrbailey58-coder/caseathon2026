@@ -19,6 +19,8 @@ import type {
   VesselPresetType,
 } from '@/types/maritime'
 
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') || ''
+
 export function App() {
   const [condition, setCondition] = useState<ConditionType>('COMBINED')
   const [mitigated, setMitigated] = useState<boolean>(true)
@@ -77,7 +79,7 @@ export function App() {
     try {
       let bundle: Record<string, unknown>
       try {
-        const res = await fetch('/api/export/results')
+        const res = await fetch(`${API_BASE_URL}/api/export/results`)
         if (!res.ok) {
           throw new Error(`HTTP ${res.status}`)
         }
@@ -113,7 +115,7 @@ export function App() {
           window: String(window),
           vessel_type: vesselType,
         })
-        const res = await fetch(`/api/scenario?${params.toString()}`, {
+        const res = await fetch(`${API_BASE_URL}/api/scenario?${params.toString()}`, {
           signal: controller.signal,
         })
         if (!res.ok) {
@@ -145,7 +147,7 @@ export function App() {
 
     async function fetchHitlLogs() {
       try {
-        const res = await fetch('/api/hitl/logs?limit=25', {
+        const res = await fetch(`${API_BASE_URL}/api/hitl/logs?limit=25`, {
           signal: controller.signal,
         })
         if (!res.ok) {
@@ -174,7 +176,7 @@ export function App() {
     async function fetchMatrixSummary() {
       try {
         const params = new URLSearchParams({ window: String(window) })
-        const res = await fetch(`/api/matrix-summary?${params.toString()}`, {
+        const res = await fetch(`${API_BASE_URL}/api/matrix-summary?${params.toString()}`, {
           signal: controller.signal,
         })
         if (!res.ok) {
@@ -216,7 +218,7 @@ export function App() {
     setOperatorVerified({ key: currentScenarioKey, action })
 
     try {
-      const res = await fetch('/api/hitl/override', {
+      const res = await fetch(`${API_BASE_URL}/api/hitl/override`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -239,7 +241,7 @@ export function App() {
 
       // Refresh persisted DuckDB logs from GET /api/hitl/logs
       try {
-        const logsRes = await fetch('/api/hitl/logs?limit=25')
+        const logsRes = await fetch(`${API_BASE_URL}/api/hitl/logs?limit=25`)
         if (logsRes.ok) {
           const logsData = (await logsRes.json()) as HitlLogsData
           setHitlLogs(logsData)

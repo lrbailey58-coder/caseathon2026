@@ -3,10 +3,13 @@ from __future__ import annotations
 import json
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import AsyncIterator, Literal
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from backend.db import (
@@ -778,3 +781,31 @@ def export_results_bundle() -> dict[str, object]:
             ),
         },
     }
+
+
+FRONTEND_DIST_DIR = Path("frontend/dist")
+if not FRONTEND_DIST_DIR.exists():
+    FRONTEND_DIST_DIR = REPO_ROOT / "frontend" / "dist"
+
+if FRONTEND_DIST_DIR.exists():
+    assets_dir = FRONTEND_DIST_DIR / "assets"
+    if assets_dir.exists():
+        app.mount(
+            "/assets",
+            StaticFiles(directory=str(assets_dir)),
+            name="frontend-assets",
+        )
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    def serve_react_spa(full_path: str) -> FileResponse:
+        if full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail=f"API route not found: /{full_path}")
+        candidate = (FRONTEND_DIST_DIR / full_path).resolve()
+        if (
+            full_path
+            and candidate.is_file()
+            and FRONTEND_DIST_DIR.resolve() in candidate.parents
+        ):
+            return FileResponse(str(candidate))
+        return FileResponse("frontend/dist/index.html" if Path("frontend/dist/index.html").exists() else str(FRONTEND_DIST_DIR / "index.html"))
+
