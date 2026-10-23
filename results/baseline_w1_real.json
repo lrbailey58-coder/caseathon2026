@@ -79,9 +79,11 @@
       }
     }
   },
-  "predict_total_ms": 113.92,
-  "predict_ms_per_row": 0.00615,
+  "predict_total_ms": 120.71,
+  "predict_ms_per_row": 0.00651,
   "data_notes": {
+    "voyages_dropped_not_one_ship": 4,
+    "rows_dropped_not_one_ship": 7,
     "source": "real (maritime_case.duckdb, table injected_streams)",
     "condition": "NOMINAL",
     "windows": [
@@ -92,6 +94,6 @@
     "rows_dropped_impossible_source_speed": "original speed > 40 kn (see check_data)",
     "window_rule": "voyage assigned to the window of its first ping"
   },
-  "created_utc": "2026-10-23T18:52:47Z",
+  "created_utc": "2026-10-23T20:10:50Z",
   "saved_model": "models\\baseline_w1_real.joblib"
 }

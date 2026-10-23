@@ -189,7 +189,7 @@ export function HeaderControls({
               <button
                 type="button"
                 onClick={() => onVesselTypeChange('HARBOR_TUG_RARE_MANEUVER')}
-                title="Failure Mode: TUG CAPE HENRY (MMSI 367004890) executing a high-G emergency escort turn (>45 deg/min)"
+                title="Failure Mode: a real harbor tug making sharp turns (>= 20 deg/min) that the trust gate wrongly flags as bad data"
                 className={cn(
                   'rounded px-2 py-0.5 text-[11px] font-mono font-semibold transition-colors cursor-pointer flex items-center gap-1',
                   isRareManeuver

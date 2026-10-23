@@ -14,6 +14,34 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = REPO_ROOT / "data"
 DB_PATH = DATA_DIR / "maritime_case.duckdb"
 
+# Real ML results (written by `uv run python -m backend.ml.export_dashboard`, committed to git).
+# When this file exists, the backend loads it on start and uses it INSTEAD of the demo seed data
+# below, so every copy of the site (local or hosted) shows real results.
+REAL_RESULTS_PATH = REPO_ROOT / "results" / "dashboard_export_real.json"
+METRIC_COLUMNS = [
+    "condition", "mitigated", "window_id", "displacement_mae_m", "tail_95_error_m", "data_discarded_pct",
+    "decisions_deferred_pct", "tier2_corrupted_volume_pct", "avg_data_staleness_min", "model_compute_latency_ms",
+]
+TRAJECTORY_COLUMNS = [
+    "condition", "mitigated", "window_id", "mmsi", "vessel_name", "vessel_type", "ground_truth_json",
+    "unmitigated_pred_json", "mitigated_pred_json", "uncertainty_poly_json", "tier1_divergence_m",
+    "staleness_min", "trust_score",
+]
+# Extra per-ship fields from the real export (NULL when showing demo data).
+EXAMPLE_COLUMNS = {
+    "voyage_id": "VARCHAR",
+    "example_mae_m": "DOUBLE",
+    "example_tail_95_m": "DOUBLE",
+    "example_discarded_pct": "DOUBLE",
+    "example_deferred_pct": "DOUBLE",
+    "max_turn_deg_per_min": "DOUBLE",
+    "clean_false_alarm_pct": "DOUBLE",
+    "explanation": "VARCHAR",
+}
+# What the site is currently showing; reported by /api/health.
+DATA_SOURCE: dict[str, object] = {"kind": "demo", "detail": "built-in demo values (no real results file found)"}
+_loaded_results_signature: tuple[float, int] | None = None
+
 CONDITIONS: list[ConditionType] = ["NOMINAL", "STALE", "LOW_QUALITY", "COMBINED"]
 VESSEL_PRESETS: list[VesselPresetType] = [
     "CARGO_CONTAINER",
@@ -301,6 +329,55 @@ def get_connection() -> duckdb.DuckDBPyConnection:
     return duckdb.connect(str(DB_PATH))
 
 
+def load_export_rows(conn: duckdb.DuckDBPyConnection, export: dict) -> None:
+    """Replace experiment_metrics and vessel_trajectories with the rows of a real export, in one transaction."""
+    metrics, trajectories = export["experiment_metrics"], export["vessel_trajectories"]
+    presets = {t["vessel_type"] for t in trajectories}
+    if len(metrics) != 48 or not set(VESSEL_PRESETS) <= presets:
+        raise ValueError(f"unexpected export: {len(metrics)} metric rows, presets {sorted(presets)}")
+    traj_cols = TRAJECTORY_COLUMNS + list(EXAMPLE_COLUMNS)
+    conn.execute("BEGIN TRANSACTION")
+    try:
+        conn.execute("DELETE FROM experiment_metrics")
+        conn.execute("DELETE FROM vessel_trajectories")
+        conn.executemany(
+            f"INSERT INTO experiment_metrics ({', '.join(METRIC_COLUMNS)}) VALUES ({', '.join('?' * len(METRIC_COLUMNS))})",
+            [[m[c] for c in METRIC_COLUMNS] for m in metrics],
+        )
+        conn.executemany(
+            f"INSERT INTO vessel_trajectories ({', '.join(traj_cols)}) VALUES ({', '.join('?' * len(traj_cols))})",
+            [[json.dumps(t[c]) if c.endswith("_json") else t.get(c) for c in traj_cols] for t in trajectories],
+        )
+        conn.execute("COMMIT")
+    except Exception:
+        conn.execute("ROLLBACK")
+        raise
+
+
+def load_real_results(conn: duckdb.DuckDBPyConnection) -> bool:
+    """Load REAL_RESULTS_PATH if it exists; reload only when the file changes. True = real data is live."""
+    global _loaded_results_signature
+    if not REAL_RESULTS_PATH.exists():
+        return False
+    stat = REAL_RESULTS_PATH.stat()
+    signature = (stat.st_mtime, stat.st_size)
+    if signature != _loaded_results_signature:
+        try:
+            export = json.loads(REAL_RESULTS_PATH.read_text())
+            load_export_rows(conn, export)
+        except Exception as exc:  # a broken file must not take the site down: report it, fall back to demo
+            DATA_SOURCE.update(kind="demo", detail=f"could not load {REAL_RESULTS_PATH.name}: {exc}")
+            print(f"[db] WARNING: {DATA_SOURCE['detail']}")
+            return False
+        _loaded_results_signature = signature
+        DATA_SOURCE.update(
+            kind="real",
+            detail=f"{REAL_RESULTS_PATH.relative_to(REPO_ROOT).as_posix()} ({export.get('source', '')})",
+            created_utc=export.get("created_utc"),
+        )
+    return True
+
+
 def init_and_seed_db() -> None:
     """Create the core DuckDB tables if they do not exist and seed them when empty."""
     conn = get_connection()
@@ -357,6 +434,12 @@ def init_and_seed_db() -> None:
             )
             """
         )
+
+        for column, sql_type in EXAMPLE_COLUMNS.items():
+            conn.execute(f"ALTER TABLE vessel_trajectories ADD COLUMN IF NOT EXISTS {column} {sql_type}")
+
+        # Real results replace everything below; the demo seeds only run without them.
+        real = load_real_results(conn)
 
         # Seed experiment_metrics if empty
         metrics_count_row = conn.execute("SELECT COUNT(*) FROM experiment_metrics").fetchone()
@@ -536,7 +619,7 @@ def init_and_seed_db() -> None:
         # Seed baseline Watch Officer audit log entry if empty so avg review effort is immediately populated
         audit_count_row = conn.execute("SELECT COUNT(*) FROM hitl_audit_log").fetchone()
         audit_count = int(audit_count_row[0]) if audit_count_row else 0
-        if audit_count == 0:
+        if audit_count == 0 and not real:  # no made-up review time next to real results
             now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
             conn.execute(
                 """

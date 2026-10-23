@@ -136,15 +136,15 @@ export function MaritimeMap({ scenario, operatorVerifiedAction }: MaritimeMapPro
             <span className="text-slate-400">MMSI {hitl_alert.mmsi}</span>
             {isTugRareManeuver && (
               <span className="rounded bg-amber-500/20 border border-amber-500/50 px-1.5 py-0.5 text-[10px] text-amber-300 font-semibold">
-                FAILURE MODE: RARE ESCORT TURN
+                FAILURE MODE: SHARP TURN
               </span>
             )}
           </div>
           <div className="mt-0.5 flex items-center gap-3 text-[11px] font-mono text-slate-400">
             <span>
               {isTugRareManeuver
-                ? 'MANEUVER: HIGH-G ESCORT PIVOT (COG Δ 64.2°/min)'
-                : 'CORRIDOR: THIMBLE SHOAL INBOUND'}
+                ? `MANEUVER: SHARP TURN (UP TO ${(hitl_alert.cog_delta_deg_per_min ?? 0).toFixed(0)}°/min)`
+                : 'AREA: NORFOLK / CHESAPEAKE BAY APPROACH'}
             </span>
             <span>•</span>
             <span>
@@ -255,7 +255,7 @@ export function MaritimeMap({ scenario, operatorVerifiedAction }: MaritimeMapPro
             <div className="font-mono text-xs">
               {isOperatorVerified
                 ? 'Operator-Verified Safe Corridor (Watch Officer Locked)'
-                : `95% Quantile Prediction Cone (${mitigated ? 'Anchor-Calibrated' : 'Unmitigated Spread'})`}
+                : `90% Quantile Prediction Range (${mitigated ? 'Anchor-Calibrated' : 'Unmitigated Spread'})`}
             </div>
           </Tooltip>
         </Polygon>
@@ -362,7 +362,7 @@ export function MaritimeMap({ scenario, operatorVerifiedAction }: MaritimeMapPro
                 </span>
               ) : isTugRareManeuver ? (
                 <span className="rounded bg-amber-600 px-1.5 py-0.5 text-[10px] text-slate-950 uppercase tracking-wider">
-                  HIGH-G TURN (64.2°/m)
+                  SHARP TURN ({(hitl_alert.cog_delta_deg_per_min ?? 0).toFixed(0)}°/min)
                 </span>
               ) : (
                 <span className="text-slate-400 font-normal">(t=0)</span>
@@ -414,7 +414,7 @@ export function MaritimeMap({ scenario, operatorVerifiedAction }: MaritimeMapPro
                 {isOperatorVerified
                   ? 'OPERATOR VERIFIED Safe Endpoint (t+15m)'
                   : isTugRareManeuver
-                    ? 'Trust-Gated Endpoint (Lagging Escort Turn)'
+                    ? 'Trust-Gated Endpoint (Lagging Sharp Turn)'
                     : 'Anchor-Verified t+15m Forecast'}
               </span>
             </Tooltip>
@@ -461,7 +461,7 @@ export function MaritimeMap({ scenario, operatorVerifiedAction }: MaritimeMapPro
                 ? 'Operator-Verified Safe Path (HITL Locked)'
                 : isTugRareManeuver && mitigated
                   ? 'Trust-Gated Track (Lagging Sharp Turn)'
-                  : 'Anchor-Verified Mitigated + 95% Cone'}
+                  : 'Anchor-Verified Mitigated + 90% Range'}
             </span>
           </div>
         </div>

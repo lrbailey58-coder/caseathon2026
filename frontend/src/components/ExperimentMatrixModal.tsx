@@ -116,7 +116,12 @@ export function ExperimentMatrixModal({
                 <th className="py-2.5 px-3 text-right">95th Tail Error (m)</th>
                 <th className="py-2.5 px-3 text-right">Data Discarded (%)</th>
                 <th className="py-2.5 px-3 text-right">Decisions Deferred (%)</th>
-                <th className="py-2.5 px-3 text-right">Recovery Gain (%)</th>
+                <th
+                  className="py-2.5 px-3 text-right"
+                  title="Share of the poisoning damage undone by the countermeasure (clean row: its cost)"
+                >
+                  Damage Undone (%)
+                </th>
                 <th className="py-2.5 px-3 text-center">Action</th>
               </tr>
             </thead>
@@ -187,8 +192,15 @@ export function ExperimentMatrixModal({
                     </td>
                     <td className="py-2.5 px-3 text-right">
                       {run.mitigated ? (
-                        <span className="inline-flex items-center gap-1 rounded bg-emerald-500/15 border border-emerald-500/40 px-2 py-0.5 text-emerald-300 font-bold">
-                          +{run.recovery_gain_pct.toFixed(1)}%
+                        <span
+                          className={
+                            run.recovery_gain_pct >= 0
+                              ? 'inline-flex items-center gap-1 rounded bg-emerald-500/15 border border-emerald-500/40 px-2 py-0.5 text-emerald-300 font-bold'
+                              : 'inline-flex items-center gap-1 rounded bg-amber-500/15 border border-amber-500/40 px-2 py-0.5 text-amber-300 font-bold'
+                          }
+                        >
+                          {run.recovery_gain_pct >= 0 ? '+' : ''}
+                          {run.recovery_gain_pct.toFixed(1)}%
                         </span>
                       ) : (
                         <span className="text-slate-500">Baseline (0.0%)</span>
@@ -226,7 +238,15 @@ export function ExperimentMatrixModal({
             <span className="flex items-center gap-1.5">
               <Cpu className="h-3.5 w-3.5 text-cyan-400" />
               Model Compute Latency:{' '}
-              <strong className="text-slate-200">11.8 – 14.4 ms</strong> (Tracked Separately)
+              <strong className="text-slate-200">
+                {(() => {
+                  const ms = matrixData.runs.map((r) => r.model_compute_latency_ms)
+                  return ms.length
+                    ? `${Math.min(...ms).toFixed(1)} – ${Math.max(...ms).toFixed(1)} ms`
+                    : 'n/a'
+                })()}
+              </strong>{' '}
+              (Tracked Separately)
             </span>
             <span>•</span>
             <span className="flex items-center gap-1.5">

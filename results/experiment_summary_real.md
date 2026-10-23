@@ -2,26 +2,26 @@
 
 | Data | Countermeasure | Avg error (all) | Avg error (cargo) | 95th pct (all) | Data thrown out | Handed to human | Major corruptions caught | Damage undone (cargo) |
 |---|---|---|---|---|---|---|---|---|
-| Clean | none | 677 m | 544 m | 2,462 m | 0.0% | 0.0% | - | - |
-| Clean | gate + human hand-off | 680 m | 546 m | 2,485 m | 1.9% | 19.1% | - | - |
-| Stale | none | 701 m | 586 m | 2,391 m | 0.0% | 0.0% | - | - |
-| Stale | gate + human hand-off | 681 m | 551 m | 2,468 m | 22.7% | 19.1% | 94% | 84% |
-| Noisy | none | 690 m | 562 m | 2,469 m | 0.0% | 0.0% | - | - |
-| Noisy | gate + human hand-off | 676 m | 548 m | 2,442 m | 16.4% | 19.6% | 50% | 79% |
-| Both | none | 715 m | 601 m | 2,428 m | 0.0% | 0.0% | - | - |
-| Both | gate + human hand-off | 678 m | 550 m | 2,452 m | 31.0% | 19.0% | 78% | 89% |
+| Clean | none | 667 m | 543 m | 2,454 m | 0.0% | 0.0% | - | - |
+| Clean | gate + human hand-off | 671 m | 547 m | 2,487 m | 1.9% | 18.8% | - | - |
+| Stale | none | 690 m | 582 m | 2,379 m | 0.0% | 0.0% | - | - |
+| Stale | gate + human hand-off | 669 m | 546 m | 2,460 m | 22.6% | 18.8% | 95% | 92% |
+| Noisy | none | 683 m | 566 m | 2,468 m | 0.0% | 0.0% | - | - |
+| Noisy | gate + human hand-off | 667 m | 553 m | 2,444 m | 16.4% | 19.6% | 50% | 56% |
+| Both | none | 707 m | 608 m | 2,415 m | 0.0% | 0.0% | - | - |
+| Both | gate + human hand-off | 665 m | 546 m | 2,429 m | 30.9% | 18.9% | 78% | 96% |
 
-Physics-only baseline: 1,005 m average error.
+Physics-only baseline: 995 m average error.
 
 ### Is it luck? 95% ranges for the gaps (cargo ships, meters)
 
 | Data | Damage from poisoning | Gained back by the gate | Left over vs clean |
 |---|---|---|---|
-| Stale | +36 to +46 | +30 to +40 | +4 to +8 |
-| Noisy | +13 to +24 | +9 to +20 | +2 to +6 |
-| Both | +48 to +66 | +42 to +60 | +3 to +9 |
+| Stale | +33 to +45 | +30 to +41 | +1 to +5 |
+| Noisy | +17 to +30 | +7 to +19 | +7 to +13 |
+| Both | +55 to +77 | +53 to +73 | -0 to +6 |
 
-Cost of the gate on clean data (cargo): -0 to +3 m.
+Cost of the gate on clean data (cargo): +2 to +7 m.
 
 - Error numbers include every prediction, also the ones handed to a human.
 - Single training run; LightGBM has no randomness here, so variability comes from which voyages were tested.

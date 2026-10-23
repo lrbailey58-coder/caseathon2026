@@ -36,6 +36,9 @@ ENV PATH="/app/.venv/bin:${PATH}"
 COPY backend/ ./backend/
 COPY data/ ./data/
 
+# Real ML results: the backend loads this file on start instead of its demo seed data
+COPY results/dashboard_export_real.json ./results/dashboard_export_real.json
+
 # Copy compiled React SPA build from Stage 1
 COPY --from=frontend-builder /app/frontend/dist /app/frontend/dist
 

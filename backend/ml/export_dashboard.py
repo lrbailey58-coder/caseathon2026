@@ -1,14 +1,16 @@
-"""Step 8: export real results in the exact format Person 3's dashboard reads.
+"""Step 8: export real results in the exact format the dashboard reads.
 
 Run from the repository root, AFTER rolling.py:
-    uv run python -m backend.ml.export_dashboard                                 # JSON file only
-    uv run python -m backend.ml.export_dashboard --into data/maritime_case.duckdb  # also load the app's DB
+    uv run python -m backend.ml.export_dashboard
 
-Output: results/dashboard_export_real.json with two lists whose field names match the
-tables in backend/db.py:
+Output: results/dashboard_export_real.json. The backend (backend/db.py) loads this file
+automatically when it starts, so every copy of the site, local or hosted, shows these
+real numbers. Commit the file after re-running this script.
+
+Two lists, with field names matching backend/db.py:
 
   experiment_metrics   one row per (condition, gate off/on, window W1-W6) = 48 rows
-  vessel_trajectories  same keys: one example ship per window for the map
+  vessel_trajectories  same keys x 2 example ships (vessel_type presets) = 96 rows
 
 What each window means:
   W1      reference baseline: trained and tested inside W1, before any poisoning.
@@ -22,8 +24,12 @@ Field notes (also written into the file):
                               from backend/database/modification_log.json
   model_compute_latency_ms    median time for ONE prediction (one ship), measured here;
                               with the countermeasure it includes the 4 range models
-  example ship                the cargo voyage with the most predictions in that test
-                              window (a fixed rule, not picked for looking good)
+  example ships (fixed rules, not picked for looking good), per test window:
+    CARGO_CONTAINER           the cargo voyage that traveled farthest (first to last
+                              position) among voyages with >= 15 predictions
+    HARBOR_TUG_RARE_MANEUVER  the tug job (<= 6 h, >= 10 sharp-turn reports of >= 20 deg/min)
+                              with the highest share of those valid reports wrongly flagged by
+                              the gate on CLEAN data (the Requirement 7 failure case)
   tracks                      ground truth = true position 15 min after each ping;
                               predictions = predicted position 15 min after each ping
   uncertainty polygon         a band around the gate-on prediction, as wide as each
@@ -32,27 +38,31 @@ Field notes (also written into the file):
   trust / divergence          what the gate sees in that ship's fast-feed pings for the
                               selected condition and window (median distance from the
                               anchor track, mean trust score)
+  example_* fields            that ship's own numbers: average and 95th-percentile error,
+                              % of its fast-feed pings the gate flags, % of its
+                              predictions handed to a human
+  max_turn_deg_per_min        fastest turn in that voyage (clean data, ship >= 3 kn)
+  clean_false_alarm_pct       % of that ship's valid fast-feed pings the gate flags on
+                              CLEAN data (all of these are false alarms)
 """
 
 from __future__ import annotations
 
-import argparse
 import json
 import time
+from functools import lru_cache
 from datetime import datetime, timezone
-from pathlib import Path
 
-import duckdb
 import numpy as np
 import pandas as pd
 
 from backend.ml.data import CONDITIONS, REPO_ROOT, connect, load_pings
-from backend.ml.features import FEATURE_COLUMNS, make_dataset
+from backend.ml.features import build_features, make_dataset
 from backend.ml.gate import compare_to_anchor, learn_limits, score_trust
-from backend.ml.metrics import offset_m_to_latlon
+from backend.ml.metrics import haversine_m, offset_m_to_latlon
 from backend.ml.model_store import MODELS_DIR, load_models
 from backend.ml.rolling import TEST_WINDOWS, model_name, training_buffer
-from backend.ml.train_baseline import lgbm_params, predict_offsets, split_by_voyage_in_time
+from backend.ml.train_baseline import errors_m, lgbm_params, predict_offsets, split_by_voyage_in_time
 from backend.ml.uncertainty import SAFETY_RADIUS_M, predict_range, train_uncertainty_models, uncertainty_radius_m
 
 RESULTS = REPO_ROOT / "results"
@@ -60,15 +70,67 @@ MOD_LOG = REPO_ROOT / "backend" / "database" / "modification_log.json"
 STALE_LAG_PINGS = 10  # Person 1's stale rule (backend/database/build_database.py)
 MAX_TRACK_POINTS = 40
 SEED = 42
+MIN_EXAMPLE_PREDICTIONS = 15
+SHARP_TURN_DEG_PER_MIN = 20.0
+MIN_SPEED_FOR_TURN_KN = 3.0  # heading is unreliable for nearly stopped ships
+TUG_MIN_SHARP_REPORTS = 10
+TUG_MAX_HOURS = 6.0
+PRESETS = {"CARGO_CONTAINER": 0, "HARBOR_TUG_RARE_MANEUVER": 2}  # dashboard preset -> vessel_group
+CONDITION_TEXT = {"NOMINAL": "Clean feeds", "STALE": "Stale poisoning", "LOW_QUALITY": "Low-quality poisoning",
+                  "COMBINED": "Combined poisoning"}
 
 
 # --- helpers -------------------------------------------------------------------------
-def pick_example_voyage(test: pd.DataFrame) -> str:
-    """The cargo voyage with the most predictions (ties: smallest voyage_id). A fixed rule."""
-    cargo = test[test["vessel_group"] == 0]
-    pool = cargo if len(cargo) else test
-    counts = pool.groupby("voyage_id").size().reset_index(name="n")
-    return counts.sort_values(["n", "voyage_id"], ascending=[False, True]).iloc[0]["voyage_id"]
+def _eligible(test: pd.DataFrame, group: int) -> pd.DataFrame:
+    """Rows of voyages of this ship group with enough predictions to draw a track."""
+    rows = test[test["vessel_group"] == group]
+    counts = rows.groupby("voyage_id")["voyage_id"].transform("size")
+    return rows[counts >= MIN_EXAMPLE_PREDICTIONS]
+
+
+def pick_cargo_voyage(test: pd.DataFrame) -> str:
+    """The cargo voyage that traveled farthest, first to last position (ties: smallest voyage_id)."""
+    rows = _eligible(test, PRESETS["CARGO_CONTAINER"]).sort_values(["voyage_id", "timestamp"])
+    ends = rows.groupby("voyage_id").agg(lat0=("lat", "first"), lon0=("lon", "first"),
+                                         lat1=("lat", "last"), lon1=("lon", "last"))
+    ends["distance_m"] = haversine_m(ends["lat0"], ends["lon0"], ends["lat1"], ends["lon1"])
+    return ends.reset_index().sort_values(["distance_m", "voyage_id"], ascending=[False, True]).iloc[0]["voyage_id"]
+
+
+def pick_tug_voyage(test: pd.DataFrame, clean_flags: pd.DataFrame) -> str:
+    """The tug job whose valid sharp-turn reports the gate most often wrongly flags on clean data.
+
+    Among tug voyages with >= 15 predictions, >= 10 sharp-turn reports and lasting <= 6 hours
+    (a typical tug job; multi-day tracks would win on volume alone): the highest SHARE of
+    sharp-turn reports flagged. Ties: more flags, then smallest voyage_id. clean_flags = gate
+    decisions on CLEAN fast-feed pings, so every flag is a false alarm.
+    """
+    rows = _eligible(test, PRESETS["HARBOR_TUG_RARE_MANEUVER"])
+    hours = rows.groupby("voyage_id")["timestamp"].agg(lambda t: (t.max() - t.min()).total_seconds() / 3600)
+    f = clean_flags[clean_flags["voyage_id"].isin(hours.index) & clean_flags["sharp_turn"]]
+    score = f.groupby("voyage_id")["suspect"].agg(flags="sum", sharp="size").join(hours.rename("hours"))
+    pool = score[(score["sharp"] >= TUG_MIN_SHARP_REPORTS) & (score["hours"] <= TUG_MAX_HOURS)]
+    if pool.empty:  # fall back to any tug with a sharp turn
+        pool = score
+    pool = pool.assign(share=pool["flags"] / pool["sharp"]).reset_index()
+    return pool.sort_values(["share", "flags", "voyage_id"], ascending=[False, False, True]).iloc[0]["voyage_id"]
+
+
+def clean_gate_flags(limits: dict) -> pd.DataFrame:
+    """Gate decisions on CLEAN fast-feed pings (all windows) plus each ping's turn rate."""
+    clean = load_pings("real", "NOMINAL")
+    scored = score_trust(compare_to_anchor(clean), limits)
+    fast = scored[scored["verifiable"]][["voyage_id", "timestamp", "suspect"]]
+    turn = build_features(clean)[["voyage_id", "timestamp", "d_cog_per_min", "sog"]]
+    out = fast.merge(turn, on=["voyage_id", "timestamp"], how="left", validate="one_to_one")
+    out["sharp_turn"] = (out["d_cog_per_min"].abs() >= SHARP_TURN_DEG_PER_MIN) & (out["sog"] >= MIN_SPEED_FOR_TURN_KN)
+    return out
+
+
+def max_turn_rate(voyage_rows: pd.DataFrame) -> float:
+    """Fastest turn (deg/min) in a voyage's clean data, ignoring nearly stopped moments."""
+    moving = voyage_rows[voyage_rows["sog"] >= MIN_SPEED_FOR_TURN_KN]
+    return round(float(moving["d_cog_per_min"].abs().max()), 1) if len(moving) else 0.0
 
 
 def thin(idx: np.ndarray, k: int = MAX_TRACK_POINTS) -> np.ndarray:
@@ -140,15 +202,49 @@ def vessel_names() -> dict[str, tuple[str, str]]:
     return {v: (str(m), (n or f"MMSI {m}").strip()) for v, m, n in rows}
 
 
-def gate_view(cond: str, window: int, voyage: str, limits: dict) -> tuple[float, float]:
-    """What the gate sees in this voyage's fast-feed pings: median anchor distance, mean trust."""
-    pings = load_pings("real", cond, windows=[window])
+@lru_cache(maxsize=None)
+def _window_pings(cond: str, window: int) -> pd.DataFrame:
+    """One condition's pings for one window (cached: each is used by several example ships)."""
+    return load_pings("real", cond, windows=[window])
+
+
+def gate_view(cond: str, window: int, voyage: str, limits: dict) -> tuple[float, float, float]:
+    """What the gate sees in this voyage's fast-feed pings for one condition and window:
+    median distance from the anchor track (m), mean trust score, % of pings flagged."""
+    pings = _window_pings(cond, window)
     pings = pings[pings["voyage_id"] == voyage]
     scored = score_trust(compare_to_anchor(pings), limits)
     fast = scored[scored["verifiable"]]
     if fast.empty:
-        return 0.0, 1.0
-    return round(float(fast["anchor_dist_m"].median()), 1), round(float(fast["trust_score"].mean()), 3)
+        return 0.0, 1.0, 0.0
+    return (round(float(fast["anchor_dist_m"].median()), 1), round(float(fast["trust_score"].mean()), 3),
+            round(100.0 * float(fast["suspect"].mean()), 1))
+
+
+def explain(preset: str, cond: str, w: int, name: str, view: tuple, err: dict, newest: tuple,
+            turn: float, false_alarm: float) -> str:
+    """One sentence built only from this ship's real numbers."""
+    tag = {1: "W1 (Reference Baseline)", 6: "W6 (Unseen Test Period)"}.get(w, f"W{w}")
+    divergence, trust, flagged = view
+    corrupted, staleness = newest
+    errors = (f"Model error for this ship: {err[False]:.0f} m without the gate, {err[True]:.0f} m with it.")
+    if preset == "HARBOR_TUG_RARE_MANEUVER":
+        return (f"[{tag} // FAILURE MODE] {name} turns at up to {turn:.0f} deg/min. Even on clean data the trust "
+                f"gate wrongly flags {false_alarm:.0f}% of its valid fast-feed reports, because it compares them "
+                f"to a straight line between trusted reports ~6 min apart. {errors}")
+    text = (f"[{tag}] {CONDITION_TEXT[cond]}: {name}'s fast-feed reports sit a median {divergence:.0f} m from the "
+            f"trusted anchor track (trust {trust:.2f}); the gate flags {flagged:.0f}% of them.")
+    if cond != "NOMINAL" and w > 1:
+        text += (f" {corrupted:.0f}% of fast-feed reports in the newest training week were corrupted"
+                 f" (est. average report age {staleness:.1f} min).")
+    return f"{text} {errors}"
+
+
+def _source_label() -> str:
+    """Data description for the dashboard, taken from the manifest (never hard-coded)."""
+    manifest = json.loads((REPO_ROOT / "backend" / "database" / "manifest.json").read_text())
+    first, last = (d[:10] for d in manifest["date_range_utc"])
+    return f"real MarineCadastre AIS ({first} to {last}), simulated feed corruption"
 
 
 # --- build -----------------------------------------------------------------------------
@@ -167,36 +263,31 @@ def build() -> dict:
     assert baseline["n_predictions"] == len(w1_test), "baseline file is out of date: rerun train_baseline --source real"
 
     tests = {1: w1_test, **{w: make_dataset(load_pings("real", "NOMINAL", windows=[w])) for w in TEST_WINDOWS}}
-    examples = {w: pick_example_voyage(t) for w, t in tests.items()}
 
     # Gate limits for the "what the gate sees" fields (learned from W1, as in rolling.py).
     retrain_w2 = tests[2]["timestamp"].min()
     limits = {c: learn_limits(compare_to_anchor(training_buffer(load_pings("real", c, windows=[1]), 2, retrain_w2)))
               for c in CONDITIONS}
+    flags = clean_gate_flags(limits["NOMINAL"])
+    false_alarm_pct = (100.0 * flags.groupby("voyage_id")["suspect"].mean()).round(1).to_dict()
+    examples = {w: {"CARGO_CONTAINER": pick_cargo_voyage(t), "HARBOR_TUG_RARE_MANEUVER": pick_tug_voyage(t, flags)}
+                for w, t in tests.items()}
 
     metrics, trajectories = [], []
     latency = {}
     for cond in CONDITIONS:
         for w in range(1, 7):
-            test, voyage = tests[w], examples[w]
-            ex = test[test["voyage_id"] == voyage].sort_values("timestamp")
-            ex = ex.iloc[thin(np.arange(len(ex)))]
             if w == 1:
                 bundles = {False: base, True: {**base, "uncertainty": base_range}}
             else:
                 bundles = {m: load_models(MODELS_DIR / f"{model_name('gated' if m else 'unmitigated', cond, 'real', w)}.joblib")["models"]
                            for m in (False, True)}
-            off_lat, off_lon = predicted_track(bundles[False], ex)
-            on_lat, on_lon = predicted_track(bundles[True], ex)
-            radius = uncertainty_radius_m(predict_range(bundles[True]["uncertainty"], ex))
-            divergence, trust = gate_view(cond, w, voyage, limits[cond])
-            mmsi, vname = names.get(voyage, (voyage.split("_")[0], voyage))
+            newest_week = 1 if w == 1 else w - 1  # newest week in the training data
+            corrupted_pct, staleness = stale[(cond, newest_week)]
 
             for mitigated in (False, True):
                 if mitigated not in latency:
-                    latency[mitigated] = single_prediction_ms(bundles[mitigated], ex.iloc[[0]])
-                newest = 1 if w == 1 else w - 1  # newest week in the training data
-                corrupted_pct, staleness = stale[(cond, newest)]
+                    latency[mitigated] = single_prediction_ms(bundles[mitigated], tests[w].iloc[[0]])
                 if w == 1:
                     r = {"displacement_mae_m": baseline["displacement_mae_m"], "tail_95_error_m": baseline["tail_95_error_m"],
                          "data_discarded_pct": 0.0, "decisions_deferred_pct": 0.0}
@@ -213,24 +304,48 @@ def build() -> dict:
                     "model_compute_latency_ms": latency[mitigated],
                     "row_kind": "reference_baseline_W1" if w == 1 else "rolling_retrain",
                 })
-                trajectories.append({
-                    "condition": cond, "mitigated": mitigated, "window_id": w,
-                    "mmsi": mmsi, "vessel_name": vname, "vessel_type": "CARGO",
-                    "voyage_id": voyage,
-                    "ground_truth_json": track(ex["target_lat"], ex["target_lon"]),
-                    "unmitigated_pred_json": track(off_lat, off_lon),
-                    "mitigated_pred_json": track(on_lat, on_lon),
-                    "uncertainty_poly_json": band_polygon(on_lat, on_lon, radius) if mitigated else [],
-                    "tier1_divergence_m": divergence,
-                    "staleness_min": stale[(cond, w)][1],
-                    "trust_score": trust,
-                    "example_deferred_pct": round(100.0 * float((radius > SAFETY_RADIUS_M).mean()), 1) if mitigated else 0.0,
-                })
-    assert len(metrics) == len(trajectories) == 48
+
+            for preset, voyage in examples[w].items():
+                full = tests[w][tests[w]["voyage_id"] == voyage].sort_values("timestamp")
+                ex = full.iloc[thin(np.arange(len(full)))]
+                off_lat, off_lon = predicted_track(bundles[False], ex)
+                on_lat, on_lon = predicted_track(bundles[True], ex)
+                radius_ex = uncertainty_radius_m(predict_range(bundles[True]["uncertainty"], ex))
+                radius_full = uncertainty_radius_m(predict_range(bundles[True]["uncertainty"], full))
+                err = {m: errors_m(full, *predict_offsets(bundles[m], full)) for m in (False, True)}
+                view = gate_view(cond, w, voyage, limits[cond])
+                mmsi, vname = names.get(voyage, (voyage.split("_")[0], voyage))
+                turn = max_turn_rate(full)
+                fa = false_alarm_pct.get(voyage, 0.0)
+                text = explain(preset, cond, w, vname, view, {m: float(e.mean()) for m, e in err.items()},
+                               (corrupted_pct, staleness), turn, fa)
+                for mitigated in (False, True):
+                    trajectories.append({
+                        "condition": cond, "mitigated": mitigated, "window_id": w,
+                        "mmsi": mmsi, "vessel_name": vname, "vessel_type": preset,
+                        "voyage_id": voyage,
+                        "ground_truth_json": track(ex["target_lat"], ex["target_lon"]),
+                        "unmitigated_pred_json": track(off_lat, off_lon),
+                        "mitigated_pred_json": track(on_lat, on_lon),
+                        "uncertainty_poly_json": band_polygon(on_lat, on_lon, radius_ex) if mitigated else [],
+                        "tier1_divergence_m": view[0],
+                        "staleness_min": stale[(cond, w)][1],
+                        "trust_score": view[1],
+                        "example_mae_m": round(float(err[mitigated].mean()), 1),
+                        "example_tail_95_m": round(float(np.percentile(err[mitigated], 95)), 1),
+                        "example_discarded_pct": view[2] if mitigated else 0.0,
+                        "example_deferred_pct": round(100.0 * float((radius_full > SAFETY_RADIUS_M).mean()), 1) if mitigated else 0.0,
+                        "example_predictions": int(len(full)),
+                        "max_turn_deg_per_min": turn,
+                        "clean_false_alarm_pct": fa,
+                        "explanation": text,
+                    })
+    assert len(metrics) == 48 and len(trajectories) == 96, (len(metrics), len(trajectories))
     return {
         "run": "dashboard_export",
-        "source": "real MarineCadastre AIS (Sept 1-12, 2025), simulated feed corruption",
+        "source": _source_label(),
         "tables": "field names match backend/db.py: experiment_metrics and vessel_trajectories",
+        "examples_by_window": {f"W{w}": e for w, e in examples.items()},
         "field_notes": __doc__.split("Field notes (also written into the file):")[1].strip(),
         "safety_radius_m": SAFETY_RADIUS_M,
         "experiment_metrics": metrics,
@@ -239,43 +354,7 @@ def build() -> dict:
     }
 
 
-# --- optional: load into the app's DuckDB -------------------------------------------------
-METRIC_COLS = ["condition", "mitigated", "window_id", "displacement_mae_m", "tail_95_error_m", "data_discarded_pct",
-               "decisions_deferred_pct", "tier2_corrupted_volume_pct", "avg_data_staleness_min", "model_compute_latency_ms"]
-TRAJ_COLS = ["condition", "mitigated", "window_id", "mmsi", "vessel_name", "vessel_type", "ground_truth_json",
-             "unmitigated_pred_json", "mitigated_pred_json", "uncertainty_poly_json", "tier1_divergence_m",
-             "staleness_min", "trust_score"]
-
-
-def load_into(db_path: Path, export: dict) -> None:
-    """Replace the demo rows in the app's experiment_metrics and vessel_trajectories tables."""
-    con = duckdb.connect(str(db_path))
-    try:
-        con.execute("""CREATE TABLE IF NOT EXISTS experiment_metrics (condition VARCHAR, mitigated BOOLEAN,
-            window_id INTEGER, displacement_mae_m DOUBLE, tail_95_error_m DOUBLE, data_discarded_pct DOUBLE,
-            decisions_deferred_pct DOUBLE, tier2_corrupted_volume_pct DOUBLE, avg_data_staleness_min DOUBLE,
-            model_compute_latency_ms DOUBLE)""")
-        con.execute("""CREATE TABLE IF NOT EXISTS vessel_trajectories (condition VARCHAR, mitigated BOOLEAN,
-            window_id INTEGER, mmsi VARCHAR, vessel_name VARCHAR, vessel_type VARCHAR, ground_truth_json VARCHAR,
-            unmitigated_pred_json VARCHAR, mitigated_pred_json VARCHAR, uncertainty_poly_json VARCHAR,
-            tier1_divergence_m DOUBLE, staleness_min DOUBLE, trust_score DOUBLE)""")
-        con.execute("BEGIN TRANSACTION")
-        con.execute("DELETE FROM experiment_metrics")
-        con.execute("DELETE FROM vessel_trajectories")
-        con.executemany(f"INSERT INTO experiment_metrics ({', '.join(METRIC_COLS)}) VALUES ({', '.join('?' * len(METRIC_COLS))})",
-                        [[m[c] for c in METRIC_COLS] for m in export["experiment_metrics"]])
-        con.executemany(f"INSERT INTO vessel_trajectories ({', '.join(TRAJ_COLS)}) VALUES ({', '.join('?' * len(TRAJ_COLS))})",
-                        [[json.dumps(t[c]) if c.endswith("_json") else t[c] for c in TRAJ_COLS]
-                         for t in export["vessel_trajectories"]])
-        con.execute("COMMIT")
-    finally:
-        con.close()
-
-
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Export real results for the dashboard.")
-    parser.add_argument("--into", type=Path, help="also load into this app database (e.g. data/maritime_case.duckdb)")
-    args = parser.parse_args()
     export = build()
     out = RESULTS / "dashboard_export_real.json"
     out.write_text(json.dumps(export, indent=2))
@@ -283,11 +362,13 @@ def main() -> None:
     print(m[m["window_id"] == 6][["condition", "mitigated", "displacement_mae_m", "data_discarded_pct",
                                   "decisions_deferred_pct", "tier2_corrupted_volume_pct", "avg_data_staleness_min",
                                   "model_compute_latency_ms"]].to_string(index=False))
+    t = pd.DataFrame(export["vessel_trajectories"])
+    ships = (t[(t["condition"] == "COMBINED") & t["mitigated"]]
+             [["window_id", "vessel_type", "vessel_name", "example_predictions", "max_turn_deg_per_min",
+               "clean_false_alarm_pct", "example_mae_m"]])
+    print(f"\nExample ships (COMBINED, gate on):\n{ships.to_string(index=False)}")
     print(f"\n{len(export['experiment_metrics'])} metric rows, {len(export['vessel_trajectories'])} trajectory rows")
-    print(f"Saved: {out.relative_to(REPO_ROOT)}")
-    if args.into:
-        load_into(args.into, export)
-        print(f"Loaded into {args.into} (demo rows replaced)")
+    print(f"Saved: {out.relative_to(REPO_ROOT)}  (the backend loads it automatically on start; commit it)")
 
 
 if __name__ == "__main__":

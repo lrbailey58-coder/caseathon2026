@@ -16,7 +16,16 @@ import json
 import sys
 from datetime import datetime, timezone
 
-from backend.ml.data import CONDITIONS, DB_PATH, MAX_PLAUSIBLE_SOG_KN, REPO_ROOT, connect
+from backend.ml.data import (
+    CONDITIONS,
+    DB_PATH,
+    MAX_IMPLIED_SPEED_KN,
+    MAX_PLAUSIBLE_SOG_KN,
+    MIN_TELEPORTS_TO_DROP,
+    REPO_ROOT,
+    bad_voyages,
+    connect,
+)
 
 # Chesapeake / Norfolk box used by Person 1's ingestion (backend/database/build_database.py)
 LAT_RANGE, LON_RANGE = (36.8, 37.3), (-76.6, -75.8)
@@ -108,6 +117,14 @@ def run_checks() -> Report:
         r.check("enough voyages long enough for 15-min predictions (>= 20 min)", dur[2] >= 300,
                 {"voyages": dur[0], "single_ping": int(dur[1]), "20_min_or_longer": int(dur[2]),
                  "median_minutes": round(dur[3], 1)})
+
+        bad = bad_voyages(DB_PATH)
+        reasons = {why: sum(1 for r in bad.values() if r == why) for why in sorted(set(bad.values()))}
+        r.check("voyages that are not one real ship (loader drops them)", len(bad) == 0,
+                {"voyages": len(bad), "by_reason": reasons,
+                 "voyage_ids": sorted(bad),
+                 "rule": f">= {MIN_TELEPORTS_TO_DROP} jumps between reports implying > {MAX_IMPLIED_SPEED_KN:.0f} kn"},
+                fail_status="WARN" if len(bad) <= 0.01 * dur[0] else "FAIL")
 
         split = one("""SELECT COUNT(*) FROM (SELECT voyage_id FROM injected_streams WHERE condition = 'NOMINAL'
                        GROUP BY 1 HAVING COUNT(DISTINCT window_id) > 1)""")
