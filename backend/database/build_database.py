@@ -112,7 +112,7 @@ def init_tables(con: duckdb.DuckDBPyConnection):
 
 
 def download_and_stream_ingest(
-    con: duckdb.DuckDBPyConnection, start_date: date, days: int = 12
+    con: duckdb.DuckDBPyConnection, start_date: date, days: int = 42
 ):
   """Downloads ais-YYYY-MM-DD.csv.zst files directly, filters for Chesapeake Bay, and loads raw_reference_ais."""
   TEMP_DIR.mkdir(parents=True, exist_ok=True)
@@ -461,7 +461,7 @@ if __name__ == "__main__":
 
     # Target date range: 12 days starting Sep 1, 2025
     start_dt = date(2025, 9, 1)
-    download_and_stream_ingest(con, start_date=start_dt, days=12)
+    download_and_stream_ingest(con, start_date=start_dt, days=42)
 
     inject_degradations(con)
     export_manifest(con)
