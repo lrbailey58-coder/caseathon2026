@@ -7,14 +7,14 @@
     "NOMINAL": {
       "limits_learned_from_W1": {
         "all": {
-          "anchor_dist_m": 549.4371966478491,
-          "speed_diff_kn": 5.019152697954227,
-          "heading_diff_deg": 108.12014862765197
+          "anchor_dist_m": 549.2433605168335,
+          "speed_diff_kn": 5.019245961450685,
+          "heading_diff_deg": 107.9981415003038
         },
         "0": {
-          "anchor_dist_m": 326.21535105609814,
-          "speed_diff_kn": 1.6657239028635342,
-          "heading_diff_deg": 25.349458226775667
+          "anchor_dist_m": 325.89061595945236,
+          "speed_diff_kn": 1.6657486221043498,
+          "heading_diff_deg": 25.301668277217807
         },
         "1": {
           "anchor_dist_m": 506.74082312857024,
@@ -30,9 +30,9 @@
       "by_window": {
         "W1": {
           "caught_tp": 0,
-          "false_alarm_fp": 2136,
+          "false_alarm_fp": 2137,
           "missed_fn": 0,
-          "correct_keep_tn": 86432,
+          "correct_keep_tn": 86426,
           "catch_rate_pct": null,
           "precision_pct": 0.0,
           "false_alarm_rate_pct": 2.41,
@@ -40,13 +40,13 @@
           "corrupted_pct": 0.0,
           "major_corrupted_pct": 0.0,
           "major_catch_rate_pct": null,
-          "unverifiable_pings": 826
+          "unverifiable_pings": 822
         },
         "W2": {
           "caught_tp": 0,
-          "false_alarm_fp": 1740,
+          "false_alarm_fp": 1741,
           "missed_fn": 0,
-          "correct_keep_tn": 87314,
+          "correct_keep_tn": 87313,
           "catch_rate_pct": null,
           "precision_pct": 0.0,
           "false_alarm_rate_pct": 1.95,
@@ -58,9 +58,9 @@
         },
         "W3": {
           "caught_tp": 0,
-          "false_alarm_fp": 2167,
+          "false_alarm_fp": 2168,
           "missed_fn": 0,
-          "correct_keep_tn": 86208,
+          "correct_keep_tn": 86207,
           "catch_rate_pct": null,
           "precision_pct": 0.0,
           "false_alarm_rate_pct": 2.45,
@@ -72,13 +72,13 @@
         },
         "W4": {
           "caught_tp": 0,
-          "false_alarm_fp": 1734,
+          "false_alarm_fp": 1692,
           "missed_fn": 0,
-          "correct_keep_tn": 86683,
+          "correct_keep_tn": 83489,
           "catch_rate_pct": null,
           "precision_pct": 0.0,
-          "false_alarm_rate_pct": 1.96,
-          "flagged_pct": 1.96,
+          "false_alarm_rate_pct": 1.99,
+          "flagged_pct": 1.99,
           "corrupted_pct": 0.0,
           "major_corrupted_pct": 0.0,
           "major_catch_rate_pct": null,
@@ -100,24 +100,24 @@
         },
         "W6": {
           "caught_tp": 0,
-          "false_alarm_fp": 2318,
+          "false_alarm_fp": 2280,
           "missed_fn": 0,
-          "correct_keep_tn": 86254,
+          "correct_keep_tn": 86199,
           "catch_rate_pct": null,
           "precision_pct": 0.0,
-          "false_alarm_rate_pct": 2.62,
-          "flagged_pct": 2.62,
+          "false_alarm_rate_pct": 2.58,
+          "flagged_pct": 2.58,
           "corrupted_pct": 0.0,
           "major_corrupted_pct": 0.0,
           "major_catch_rate_pct": null,
-          "unverifiable_pings": 895
+          "unverifiable_pings": 894
         }
       },
       "overall": {
         "caught_tp": 0,
-        "false_alarm_fp": 12633,
+        "false_alarm_fp": 12556,
         "missed_fn": 0,
-        "correct_keep_tn": 518817,
+        "correct_keep_tn": 515560,
         "catch_rate_pct": null,
         "precision_pct": 0.0,
         "false_alarm_rate_pct": 2.38,
@@ -133,14 +133,14 @@
     "STALE": {
       "limits_learned_from_W1": {
         "all": {
-          "anchor_dist_m": 549.4371966478491,
-          "speed_diff_kn": 5.019152697954227,
-          "heading_diff_deg": 108.12014862765197
+          "anchor_dist_m": 549.2433605168335,
+          "speed_diff_kn": 5.019245961450685,
+          "heading_diff_deg": 107.9981415003038
         },
         "0": {
-          "anchor_dist_m": 326.21535105609814,
-          "speed_diff_kn": 1.6657239028635342,
-          "heading_diff_deg": 25.349458226775667
+          "anchor_dist_m": 325.89061595945236,
+          "speed_diff_kn": 1.6657486221043498,
+          "heading_diff_deg": 25.301668277217807
         },
         "1": {
           "anchor_dist_m": 506.74082312857024,
@@ -156,9 +156,9 @@
       "by_window": {
         "W1": {
           "caught_tp": 0,
-          "false_alarm_fp": 2136,
+          "false_alarm_fp": 2137,
           "missed_fn": 0,
-          "correct_keep_tn": 86432,
+          "correct_keep_tn": 86426,
           "catch_rate_pct": null,
           "precision_pct": 0.0,
           "false_alarm_rate_pct": 2.41,
@@ -166,13 +166,13 @@
           "corrupted_pct": 0.0,
           "major_corrupted_pct": 0.0,
           "major_catch_rate_pct": null,
-          "unverifiable_pings": 826
+          "unverifiable_pings": 822
         },
         "W2": {
           "caught_tp": 11105,
-          "false_alarm_fp": 1564,
+          "false_alarm_fp": 1565,
           "missed_fn": 819,
-          "correct_keep_tn": 75567,
+          "correct_keep_tn": 75566,
           "catch_rate_pct": 93.13,
           "precision_pct": 87.65,
           "false_alarm_rate_pct": 2.03,
@@ -184,11 +184,11 @@
         },
         "W3": {
           "caught_tp": 21217,
-          "false_alarm_fp": 1681,
+          "false_alarm_fp": 1682,
           "missed_fn": 2171,
-          "correct_keep_tn": 63307,
+          "correct_keep_tn": 63306,
           "catch_rate_pct": 90.72,
-          "precision_pct": 92.66,
+          "precision_pct": 92.65,
           "false_alarm_rate_pct": 2.59,
           "flagged_pct": 25.91,
           "corrupted_pct": 26.46,
@@ -197,17 +197,17 @@
           "unverifiable_pings": 900
         },
         "W4": {
-          "caught_tp": 36357,
-          "false_alarm_fp": 1086,
-          "missed_fn": 3203,
-          "correct_keep_tn": 47772,
-          "catch_rate_pct": 91.9,
-          "precision_pct": 97.1,
-          "false_alarm_rate_pct": 2.22,
-          "flagged_pct": 42.35,
-          "corrupted_pct": 44.74,
-          "major_corrupted_pct": 43.54,
-          "major_catch_rate_pct": 94.06,
+          "caught_tp": 35129,
+          "false_alarm_fp": 1066,
+          "missed_fn": 2851,
+          "correct_keep_tn": 46136,
+          "catch_rate_pct": 92.49,
+          "precision_pct": 97.05,
+          "false_alarm_rate_pct": 2.26,
+          "flagged_pct": 42.49,
+          "corrupted_pct": 44.59,
+          "major_corrupted_pct": 43.48,
+          "major_catch_rate_pct": 94.56,
           "unverifiable_pings": 916
         },
         "W5": {
@@ -225,29 +225,29 @@
           "unverifiable_pings": 789
         },
         "W6": {
-          "caught_tp": 50762,
-          "false_alarm_fp": 1169,
+          "caught_tp": 50707,
+          "false_alarm_fp": 1151,
           "missed_fn": 3842,
-          "correct_keep_tn": 32801,
+          "correct_keep_tn": 32781,
           "catch_rate_pct": 92.96,
-          "precision_pct": 97.75,
-          "false_alarm_rate_pct": 3.44,
-          "flagged_pct": 58.63,
+          "precision_pct": 97.78,
+          "false_alarm_rate_pct": 3.39,
+          "flagged_pct": 58.61,
           "corrupted_pct": 61.65,
           "major_corrupted_pct": 60.31,
-          "major_catch_rate_pct": 94.79,
-          "unverifiable_pings": 897
+          "major_catch_rate_pct": 94.78,
+          "unverifiable_pings": 896
         }
       },
       "overall": {
-        "caught_tp": 170095,
-        "false_alarm_fp": 8898,
-        "missed_fn": 13471,
-        "correct_keep_tn": 338992,
-        "catch_rate_pct": 92.66,
-        "precision_pct": 95.03,
+        "caught_tp": 168812,
+        "false_alarm_fp": 8863,
+        "missed_fn": 13119,
+        "correct_keep_tn": 337328,
+        "catch_rate_pct": 92.79,
+        "precision_pct": 95.01,
         "false_alarm_rate_pct": 2.56,
-        "flagged_pct": 33.68
+        "flagged_pct": 33.64
       },
       "false_alarm_rate_pct_by_ship_type": {
         "cargo": 2.43,
@@ -264,22 +264,22 @@
           "caught_pct": 99.62
         },
         "tug": {
-          "major_corrupted_pings": 126913,
-          "caught_pct": 92.34
+          "major_corrupted_pings": 125398,
+          "caught_pct": 92.46
         }
       }
     },
     "LOW_QUALITY": {
       "limits_learned_from_W1": {
         "all": {
-          "anchor_dist_m": 549.4371966478491,
-          "speed_diff_kn": 5.023116794106675,
-          "heading_diff_deg": 108.12014862765197
+          "anchor_dist_m": 549.2433605168335,
+          "speed_diff_kn": 5.023119171950766,
+          "heading_diff_deg": 107.9981415003038
         },
         "0": {
-          "anchor_dist_m": 326.21535105609814,
-          "speed_diff_kn": 1.6657239028635342,
-          "heading_diff_deg": 25.349458226775667
+          "anchor_dist_m": 325.89061595945236,
+          "speed_diff_kn": 1.6657486221043498,
+          "heading_diff_deg": 25.301668277217807
         },
         "1": {
           "anchor_dist_m": 506.74082312857024,
@@ -295,9 +295,9 @@
       "by_window": {
         "W1": {
           "caught_tp": 1,
-          "false_alarm_fp": 2135,
+          "false_alarm_fp": 2136,
           "missed_fn": 4,
-          "correct_keep_tn": 86428,
+          "correct_keep_tn": 86422,
           "catch_rate_pct": 20.0,
           "precision_pct": 0.05,
           "false_alarm_rate_pct": 2.41,
@@ -305,7 +305,7 @@
           "corrupted_pct": 0.01,
           "major_corrupted_pct": 0.0,
           "major_catch_rate_pct": 100.0,
-          "unverifiable_pings": 826
+          "unverifiable_pings": 822
         },
         "W2": {
           "caught_tp": 14342,
@@ -322,9 +322,9 @@
           "unverifiable_pings": 659
         },
         "W3": {
-          "caught_tp": 14846,
+          "caught_tp": 14849,
           "false_alarm_fp": 0,
-          "missed_fn": 73529,
+          "missed_fn": 73526,
           "correct_keep_tn": 0,
           "catch_rate_pct": 16.8,
           "precision_pct": 100.0,
@@ -332,93 +332,93 @@
           "flagged_pct": 16.8,
           "corrupted_pct": 100.0,
           "major_corrupted_pct": 26.86,
-          "major_catch_rate_pct": 55.35,
+          "major_catch_rate_pct": 55.36,
           "unverifiable_pings": 900
         },
         "W4": {
-          "caught_tp": 19200,
+          "caught_tp": 18692,
           "false_alarm_fp": 0,
-          "missed_fn": 69217,
+          "missed_fn": 66489,
           "correct_keep_tn": 0,
-          "catch_rate_pct": 21.72,
+          "catch_rate_pct": 21.94,
           "precision_pct": 100.0,
           "false_alarm_rate_pct": null,
-          "flagged_pct": 21.72,
+          "flagged_pct": 21.94,
           "corrupted_pct": 100.0,
-          "major_corrupted_pct": 66.33,
-          "major_catch_rate_pct": 31.68,
+          "major_corrupted_pct": 66.36,
+          "major_catch_rate_pct": 31.99,
           "unverifiable_pings": 914
         },
         "W5": {
-          "caught_tp": 41240,
+          "caught_tp": 41254,
           "false_alarm_fp": 0,
-          "missed_fn": 47224,
+          "missed_fn": 47210,
           "correct_keep_tn": 0,
-          "catch_rate_pct": 46.62,
+          "catch_rate_pct": 46.63,
           "precision_pct": 100.0,
           "false_alarm_rate_pct": null,
-          "flagged_pct": 46.62,
+          "flagged_pct": 46.63,
           "corrupted_pct": 100.0,
           "major_corrupted_pct": 87.05,
-          "major_catch_rate_pct": 53.09,
+          "major_catch_rate_pct": 53.11,
           "unverifiable_pings": 790
         },
         "W6": {
-          "caught_tp": 40077,
+          "caught_tp": 40034,
           "false_alarm_fp": 0,
-          "missed_fn": 48495,
+          "missed_fn": 48445,
           "correct_keep_tn": 0,
           "catch_rate_pct": 45.25,
           "precision_pct": 100.0,
           "false_alarm_rate_pct": null,
           "flagged_pct": 45.25,
           "corrupted_pct": 100.0,
-          "major_corrupted_pct": 86.93,
+          "major_corrupted_pct": 86.94,
           "major_catch_rate_pct": 51.6,
-          "unverifiable_pings": 895
+          "unverifiable_pings": 894
         }
       },
       "overall": {
-        "caught_tp": 129706,
-        "false_alarm_fp": 2135,
-        "missed_fn": 313181,
-        "correct_keep_tn": 86428,
-        "catch_rate_pct": 29.29,
-        "precision_pct": 98.38,
+        "caught_tp": 129172,
+        "false_alarm_fp": 2136,
+        "missed_fn": 310386,
+        "correct_keep_tn": 86422,
+        "catch_rate_pct": 29.39,
+        "precision_pct": 98.37,
         "false_alarm_rate_pct": 2.41,
-        "flagged_pct": 24.81
+        "flagged_pct": 24.86
       },
       "false_alarm_rate_pct_by_ship_type": {
-        "cargo": 2.41,
+        "cargo": 2.42,
         "tanker": 2.12,
         "tug": 2.41
       },
       "major_catch_rate_by_ship_type": {
         "cargo": {
-          "major_corrupted_pings": 66797,
-          "caught_pct": 76.49
+          "major_corrupted_pings": 66795,
+          "caught_pct": 76.56
         },
         "tanker": {
           "major_corrupted_pings": 2476,
           "caught_pct": 53.72
         },
         "tug": {
-          "major_corrupted_pings": 180565,
-          "caught_pct": 40.28
+          "major_corrupted_pings": 178366,
+          "caught_pct": 40.46
         }
       }
     },
     "COMBINED": {
       "limits_learned_from_W1": {
         "all": {
-          "anchor_dist_m": 549.571005181484,
-          "speed_diff_kn": 5.023279251244733,
-          "heading_diff_deg": 108.12014862765197
+          "anchor_dist_m": 549.4400214913568,
+          "speed_diff_kn": 5.02328035235542,
+          "heading_diff_deg": 107.9981415003038
         },
         "0": {
-          "anchor_dist_m": 326.21535105609814,
-          "speed_diff_kn": 1.6657239028635342,
-          "heading_diff_deg": 25.349458226775667
+          "anchor_dist_m": 325.89061595945236,
+          "speed_diff_kn": 1.6657486221043498,
+          "heading_diff_deg": 25.301668277217807
         },
         "1": {
           "anchor_dist_m": 506.74082312857024,
@@ -434,9 +434,9 @@
       "by_window": {
         "W1": {
           "caught_tp": 2,
-          "false_alarm_fp": 2132,
+          "false_alarm_fp": 2133,
           "missed_fn": 3,
-          "correct_keep_tn": 86431,
+          "correct_keep_tn": 86425,
           "catch_rate_pct": 40.0,
           "precision_pct": 0.09,
           "false_alarm_rate_pct": 2.41,
@@ -444,12 +444,12 @@
           "corrupted_pct": 0.01,
           "major_corrupted_pct": 0.0,
           "major_catch_rate_pct": 100.0,
-          "unverifiable_pings": 826
+          "unverifiable_pings": 822
         },
         "W2": {
-          "caught_tp": 23614,
+          "caught_tp": 23615,
           "false_alarm_fp": 0,
-          "missed_fn": 65441,
+          "missed_fn": 65440,
           "correct_keep_tn": 0,
           "catch_rate_pct": 26.52,
           "precision_pct": 100.0,
@@ -461,9 +461,9 @@
           "unverifiable_pings": 659
         },
         "W3": {
-          "caught_tp": 32538,
+          "caught_tp": 32539,
           "false_alarm_fp": 0,
-          "missed_fn": 55835,
+          "missed_fn": 55834,
           "correct_keep_tn": 0,
           "catch_rate_pct": 36.82,
           "precision_pct": 100.0,
@@ -475,78 +475,78 @@
           "unverifiable_pings": 901
         },
         "W4": {
-          "caught_tp": 47682,
+          "caught_tp": 46075,
           "false_alarm_fp": 0,
-          "missed_fn": 40735,
+          "missed_fn": 39106,
           "correct_keep_tn": 0,
-          "catch_rate_pct": 53.93,
+          "catch_rate_pct": 54.09,
           "precision_pct": 100.0,
           "false_alarm_rate_pct": null,
-          "flagged_pct": 53.93,
+          "flagged_pct": 54.09,
           "corrupted_pct": 100.0,
-          "major_corrupted_pct": 80.81,
-          "major_catch_rate_pct": 66.05,
+          "major_corrupted_pct": 80.82,
+          "major_catch_rate_pct": 66.26,
           "unverifiable_pings": 915
         },
         "W5": {
-          "caught_tp": 67587,
+          "caught_tp": 67592,
           "false_alarm_fp": 0,
-          "missed_fn": 20877,
+          "missed_fn": 20872,
           "correct_keep_tn": 0,
-          "catch_rate_pct": 76.4,
+          "catch_rate_pct": 76.41,
           "precision_pct": 100.0,
           "false_alarm_rate_pct": null,
-          "flagged_pct": 76.4,
+          "flagged_pct": 76.41,
           "corrupted_pct": 100.0,
           "major_corrupted_pct": 94.6,
-          "major_catch_rate_pct": 80.47,
+          "major_catch_rate_pct": 80.48,
           "unverifiable_pings": 789
         },
         "W6": {
-          "caught_tp": 67127,
+          "caught_tp": 67051,
           "false_alarm_fp": 0,
-          "missed_fn": 21448,
+          "missed_fn": 21431,
           "correct_keep_tn": 0,
-          "catch_rate_pct": 75.79,
+          "catch_rate_pct": 75.78,
           "precision_pct": 100.0,
           "false_alarm_rate_pct": null,
-          "flagged_pct": 75.79,
+          "flagged_pct": 75.78,
           "corrupted_pct": 100.0,
           "major_corrupted_pct": 94.62,
           "major_catch_rate_pct": 79.83,
-          "unverifiable_pings": 895
+          "unverifiable_pings": 894
         }
       },
       "overall": {
-        "caught_tp": 238550,
-        "false_alarm_fp": 2132,
-        "missed_fn": 204339,
-        "correct_keep_tn": 86431,
-        "catch_rate_pct": 53.86,
+        "caught_tp": 236874,
+        "false_alarm_fp": 2133,
+        "missed_fn": 202686,
+        "correct_keep_tn": 86425,
+        "catch_rate_pct": 53.89,
         "precision_pct": 99.11,
         "false_alarm_rate_pct": 2.41,
-        "flagged_pct": 45.29
+        "flagged_pct": 45.26
       },
       "false_alarm_rate_pct_by_ship_type": {
-        "cargo": 2.41,
+        "cargo": 2.42,
         "tanker": 2.12,
         "tug": 2.41
       },
       "major_catch_rate_by_ship_type": {
         "cargo": {
-          "major_corrupted_pings": 81044,
-          "caught_pct": 90.68
+          "major_corrupted_pings": 81042,
+          "caught_pct": 90.69
         },
         "tanker": {
           "major_corrupted_pings": 3054,
           "caught_pct": 81.96
         },
         "tug": {
-          "major_corrupted_pings": 218680,
-          "caught_pct": 72.65
+          "major_corrupted_pings": 215987,
+          "caught_pct": 72.79
         }
       }
     }
   },
-  "created_utc": "2026-10-23T18:59:22Z"
+  "created_utc": "2026-10-23T20:19:26Z"
 }

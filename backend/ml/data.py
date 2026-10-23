@@ -14,6 +14,11 @@ Cleanup applied to real data (logged in the returned `.attrs["notes"]`):
     ships and tankers) are dropped in every condition. These are source glitches,
     e.g. a tug reporting 46.9 kn while moving 2.4 kn. Using the clean value means
     corruption we injected on purpose is never filtered here (that is the gate's job).
+  * Whole voyages are dropped (in every condition) when the CLEAN data shows they are
+    not one real ship: 2+ "teleports" (consecutive reports implying > 50 kn), e.g.
+    placeholder ID 200000000 shared by two ships 40 km apart. Mixed-up tracks produce
+    15-min "answers" kilometers off. (A placeholder ID alone is not enough: 200000001
+    is one ship with a consistent track, so it is kept.)
   * Pings that share the exact same timestamp in the same voyage are dropped
     (both copies). The database has no rule for which copy is "first", so
     keeping one would make results change from run to run.
@@ -21,6 +26,7 @@ Cleanup applied to real data (logged in the returned `.attrs["notes"]`):
 
 from __future__ import annotations
 
+from functools import lru_cache
 from pathlib import Path
 
 import duckdb
@@ -33,6 +39,8 @@ DB_PATH = REPO_ROOT / "backend" / "maritime_case.duckdb"  # Person 1's database
 
 CONDITIONS = ["NOMINAL", "STALE", "LOW_QUALITY", "COMBINED"]
 MAX_PLAUSIBLE_SOG_KN = 40.0  # cargo/tanker/tug never go faster; higher = source glitch
+MAX_IMPLIED_SPEED_KN = 50.0  # a jump between two reports faster than this = not one ship
+MIN_TELEPORTS_TO_DROP = 2  # one odd jump can be a single bad fix; two or more = mixed-up track
 SOURCES = ["dummy", "real"]
 MODEL_COLUMNS = [
     "mmsi", "voyage_id", "timestamp", "lat", "lon", "sog", "cog",
@@ -73,6 +81,34 @@ ORDER BY s.voyage_id, s.timestamp
 """
 
 
+_BAD_VOYAGES_QUERY = """
+WITH hops AS (
+    SELECT voyage_id, mmsi, lat, lon, base_datetime,
+           LAG(lat) OVER w AS plat, LAG(lon) OVER w AS plon, LAG(base_datetime) OVER w AS pt
+    FROM raw_reference_ais
+    WINDOW w AS (PARTITION BY voyage_id ORDER BY base_datetime)
+),
+speeds AS (
+    SELECT voyage_id,
+           2 * 6371000 * asin(sqrt(sin(radians(lat - plat) / 2) ^ 2
+               + cos(radians(lat)) * cos(radians(plat)) * sin(radians(lon - plon) / 2) ^ 2))
+           / (epoch(base_datetime) - epoch(pt)) / 0.514444 AS implied_kn
+    FROM hops WHERE plat IS NOT NULL AND epoch(base_datetime) > epoch(pt)
+)
+SELECT voyage_id, 'teleports' AS reason FROM speeds
+GROUP BY voyage_id HAVING SUM(CASE WHEN implied_kn > $max_kn THEN 1 ELSE 0 END) >= $min_teleports
+"""
+
+
+@lru_cache(maxsize=None)
+def bad_voyages(db_path: Path = DB_PATH) -> dict[str, str]:
+    """{voyage_id: reason} for voyages that are not one real ship (judged on CLEAN data)."""
+    with connect(db_path) as con:
+        rows = con.execute(_BAD_VOYAGES_QUERY, {"max_kn": MAX_IMPLIED_SPEED_KN,
+                                                "min_teleports": MIN_TELEPORTS_TO_DROP}).fetchall()
+    return dict(rows)
+
+
 def load_pings(
     source: str = "real",
     condition: str = "NOMINAL",
@@ -99,8 +135,12 @@ def load_pings(
         df = con.execute(_REAL_QUERY, {"condition": condition, "windows": windows,
                                        "max_sog": MAX_PLAUSIBLE_SOG_KN}).df()
 
-    df = _clean_real(df)
+    bad = bad_voyages(Path(db_path))
+    mixed_up = df["voyage_id"].isin(list(bad))
+    df = _clean_real(df[~mixed_up].reset_index(drop=True))
     df.attrs["notes"] = {
+        "voyages_dropped_not_one_ship": len(bad),
+        "rows_dropped_not_one_ship": int(mixed_up.sum()),
         "source": f"real ({Path(db_path).name}, table injected_streams)",
         "condition": condition,
         "windows": windows,
@@ -143,7 +183,7 @@ def load_audit_labels(condition: str, windows: list[int] | None = None, db_path:
     with connect(db_path) as con:
         df = con.execute(query, {"condition": condition, "windows": windows,
                                  "max_sog": MAX_PLAUSIBLE_SOG_KN}).df()
-    df = _clean_real(df)
+    df = _clean_real(df[~df["voyage_id"].isin(list(bad_voyages(Path(db_path))))].reset_index(drop=True))
     return df[["voyage_id", "timestamp", "is_injected_defect", "clean_lat", "clean_lon", "clean_sog", "clean_cog"]]
 
 

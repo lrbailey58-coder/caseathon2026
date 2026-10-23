@@ -417,7 +417,7 @@ export function TelemetrySidebar({
                 </span>
                 {isTugRareManeuver && (
                   <span className="text-[10px] font-mono text-amber-300 bg-amber-500/15 border border-amber-500/40 rounded px-1">
-                    COG Δ 64.2°/min
+                    COG Δ {(hitl_alert.cog_delta_deg_per_min ?? 0).toFixed(0)}°/min
                   </span>
                 )}
               </div>
@@ -456,7 +456,7 @@ export function TelemetrySidebar({
               onChange={(e) => setOperatorNotesInput(e.target.value)}
               placeholder={
                 isTugRareManeuver
-                  ? 'Operator note (e.g., Confirmed valid tug escort turn via VHF Ch. 13)...'
+                  ? 'Operator note (e.g., Confirmed valid tug turn via VHF Ch. 13)...'
                   : 'Optional Watch Officer log note before committing override...'
               }
               className="w-full rounded border border-slate-800 bg-slate-950 px-2.5 py-1.5 text-xs font-mono text-slate-200 placeholder:text-slate-500 focus:border-cyan-500/60 focus:outline-none"
@@ -592,10 +592,10 @@ export function TelemetrySidebar({
           <div className="flex items-center justify-between rounded border border-amber-500/40 bg-amber-950/25 px-2.5 py-2">
             <div className="font-mono">
               <div className="font-bold text-amber-200">
-                TUG CAPE HENRY (MMSI 367004890)
+                Harbor tug, sharp turn (real AIS example)
               </div>
               <div className="text-[10px] text-slate-300">
-                Preset: <code className="text-amber-300">HARBOR_TUG_RARE_MANEUVER</code> • COG Δ &gt; 45°/min
+                Preset: <code className="text-amber-300">HARBOR_TUG_RARE_MANEUVER</code> • turns ≥ 20°/min
               </div>
             </div>
             <Button
@@ -619,22 +619,24 @@ export function TelemetrySidebar({
               Adverse Tradeoff: Valid Rare Maneuver vs. Sensor Spike
             </div>
             <p className="text-[11px] text-slate-300">
-              When harbor tugboats or pilot vessels execute legitimate high-G emergency escort turns
-              (<span className="font-mono text-amber-300">COG Δ = 64.2°/min &gt; 45°/min</span> gate limit),
-              our kinematic + Tier-1 Anchor Trust Gate falsely classifies the maneuver as a
+              When a ship makes a real sharp turn (<span className="font-mono text-amber-300">≥ 20°/min</span>),
+              its fast-feed reports curve away from the straight line our Trust Gate draws between
+              Tier-1 anchor reports (~6 min apart), so the gate can wrongly discard valid data as a
               <strong className="text-rose-300"> Low-Quality / Sensor Spike</strong>.
             </p>
             <div className="grid grid-cols-2 gap-1.5 pt-1 font-mono text-[10px]">
               <div className="rounded border border-slate-800 bg-slate-900/90 p-1.5">
-                <div className="text-slate-400">Clean Sharp Turn False Alarm</div>
+                <div className="text-slate-400">This Ship: Valid Reports Flagged (Clean Data)</div>
                 <div className="text-rose-400 font-bold text-xs">
-                  54.3% (Cargo) / 18.1% (Tug &gt;60°/m)
+                  {hitl_alert.clean_false_alarm_pct != null
+                    ? `${hitl_alert.clean_false_alarm_pct.toFixed(1)}%`
+                    : 'n/a (demo data)'}
                 </div>
               </div>
               <div className="rounded border border-slate-800 bg-slate-900/90 p-1.5">
-                <div className="text-slate-400">Unseen 300m GPS Bias Catch</div>
+                <div className="text-slate-400">Steady 300 m GPS Offset (Unseen Test)</div>
                 <div className="text-amber-300 font-bold text-xs">
-                  Only 24.6% Caught (Boundary)
+                  Mostly Missed (Boundary)
                 </div>
               </div>
             </div>
@@ -647,15 +649,14 @@ export function TelemetrySidebar({
             </div>
             <ul className="list-disc pl-4 space-y-1 text-[11px] text-slate-300">
               <li>
-                <strong>Vessel-Class Kinematic Conditioning:</strong> Exempt AIS Ship Types{' '}
-                <code className="font-mono text-cyan-300">31, 32, 52</code> (Tug / Pilot Escort) from
-                cargo turn-rate rejection caps (<code className="font-mono">&gt;45°/min</code>) when speed is{' '}
-                <code className="font-mono">&lt;14 kn</code>.
+                <strong>Turn-Aware Gate:</strong> Compare fast-feed reports against a curved path
+                (anchor positions plus their headings) instead of a straight line, and re-test the
+                sharp-turn false-alarm rate before any pilot.
               </li>
               <li>
-                <strong>Mandatory Watch Officer Deferral:</strong> Route 100% of high-G course changes
-                with wide quantile cones directly to Watch Officer manual waypoint verification before
-                issuing automated collision-avoidance advisories.
+                <strong>Watch Officer Deferral:</strong> Predictions whose 90% range exceeds 1 nautical
+                mile (1,852 m) are routed to the Watch Officer for review before any automated
+                collision-avoidance advisory.
               </li>
             </ul>
           </div>

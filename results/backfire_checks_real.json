@@ -1,17 +1,17 @@
 {
   "run": "backfire_checks",
   "A_cost_on_clean_data": {
-    "clean_gate_off_mae_m": 676.6,
-    "clean_gate_on_mae_m": 680.5,
-    "clean_gate_off_cargo_mae_m": 544.5,
-    "clean_gate_on_cargo_mae_m": 545.9,
+    "clean_gate_off_mae_m": 667.2,
+    "clean_gate_on_mae_m": 670.8,
+    "clean_gate_off_cargo_mae_m": 542.8,
+    "clean_gate_on_cargo_mae_m": 547.2,
     "cost_all_ships_95pct_range_m": [
-      2.9,
+      2.5,
       4.8
     ],
     "cost_cargo_95pct_range_m": [
-      -0.1,
-      2.7
+      2.1,
+      6.6
     ],
     "clean_data_thrown_out_pct": 1.86
   },
@@ -23,133 +23,133 @@
       },
       "tug | first ping (no turn rate)": {
         "false_alarm_pct": 0.0,
-        "pings": 9
+        "pings": 8
       },
       "cargo | gentle (5-20)": {
-        "false_alarm_pct": 6.63,
+        "false_alarm_pct": 6.65,
         "pings": 14263
       },
       "tug | gentle (5-20)": {
-        "false_alarm_pct": 2.62,
-        "pings": 64321
+        "false_alarm_pct": 2.61,
+        "pings": 63880
       },
       "cargo | sharp (20-60)": {
-        "false_alarm_pct": 46.04,
-        "pings": 1099
+        "false_alarm_pct": 46.08,
+        "pings": 1098
       },
       "tug | sharp (20-60)": {
-        "false_alarm_pct": 9.38,
-        "pings": 18511
+        "false_alarm_pct": 9.36,
+        "pings": 18416
       },
       "cargo | slow (<3 kn)": {
         "false_alarm_pct": 4.95,
-        "pings": 8190
+        "pings": 8189
       },
       "tug | slow (<3 kn)": {
-        "false_alarm_pct": 4.75,
-        "pings": 72462
+        "false_alarm_pct": 4.84,
+        "pings": 70912
       },
       "cargo | steady (<5 deg/min)": {
-        "false_alarm_pct": 1.1,
+        "false_alarm_pct": 1.11,
         "pings": 114034
       },
       "tug | steady (<5 deg/min)": {
-        "false_alarm_pct": 0.48,
-        "pings": 220975
+        "false_alarm_pct": 0.47,
+        "pings": 219818
       },
       "cargo | very sharp (>60)": {
         "false_alarm_pct": 88.46,
         "pings": 52
       },
       "tug | very sharp (>60)": {
-        "false_alarm_pct": 21.11,
-        "pings": 6774
+        "false_alarm_pct": 21.0,
+        "pings": 6691
       }
     },
     "w6_error_by_turning": {
       "cargo | first ping (no turn rate)": {
         "predictions": 153,
-        "NOMINAL_unmitigated_mae_m": 388.4,
-        "NOMINAL_gated_mae_m": 388.9,
-        "COMBINED_unmitigated_mae_m": 538.0,
-        "COMBINED_gated_mae_m": 398.6
+        "NOMINAL_unmitigated_mae_m": 379.8,
+        "NOMINAL_gated_mae_m": 393.4,
+        "COMBINED_unmitigated_mae_m": 516.0,
+        "COMBINED_gated_mae_m": 389.1
       },
       "cargo | gentle (5-20)": {
         "predictions": 3169,
-        "NOMINAL_unmitigated_mae_m": 829.6,
-        "NOMINAL_gated_mae_m": 841.4,
-        "COMBINED_unmitigated_mae_m": 908.9,
-        "COMBINED_gated_mae_m": 839.4
+        "NOMINAL_unmitigated_mae_m": 831.3,
+        "NOMINAL_gated_mae_m": 837.1,
+        "COMBINED_unmitigated_mae_m": 917.9,
+        "COMBINED_gated_mae_m": 827.8
       },
       "cargo | sharp (20-60)": {
         "predictions": 202,
-        "NOMINAL_unmitigated_mae_m": 2097.5,
-        "NOMINAL_gated_mae_m": 2157.4,
-        "COMBINED_unmitigated_mae_m": 2147.3,
-        "COMBINED_gated_mae_m": 2158.9
+        "NOMINAL_unmitigated_mae_m": 2096.7,
+        "NOMINAL_gated_mae_m": 2157.6,
+        "COMBINED_unmitigated_mae_m": 2167.4,
+        "COMBINED_gated_mae_m": 2147.7
       },
       "cargo | slow (<3 kn)": {
         "predictions": 813,
-        "NOMINAL_unmitigated_mae_m": 808.4,
-        "NOMINAL_gated_mae_m": 805.1,
-        "COMBINED_unmitigated_mae_m": 827.4,
-        "COMBINED_gated_mae_m": 810.4
+        "NOMINAL_unmitigated_mae_m": 791.6,
+        "NOMINAL_gated_mae_m": 792.9,
+        "COMBINED_unmitigated_mae_m": 816.8,
+        "COMBINED_gated_mae_m": 800.7
       },
       "cargo | steady (<5 deg/min)": {
         "predictions": 24002,
-        "NOMINAL_unmitigated_mae_m": 485.3,
-        "NOMINAL_gated_mae_m": 484.9,
-        "COMBINED_unmitigated_mae_m": 539.2,
-        "COMBINED_gated_mae_m": 490.5
+        "NOMINAL_unmitigated_mae_m": 483.6,
+        "NOMINAL_gated_mae_m": 487.4,
+        "COMBINED_unmitigated_mae_m": 546.5,
+        "COMBINED_gated_mae_m": 486.6
       },
       "cargo | very sharp (>60)": {
         "predictions": 7,
-        "NOMINAL_unmitigated_mae_m": 2588.2,
-        "NOMINAL_gated_mae_m": 2552.6,
-        "COMBINED_unmitigated_mae_m": 2840.9,
-        "COMBINED_gated_mae_m": 2485.3
+        "NOMINAL_unmitigated_mae_m": 2562.3,
+        "NOMINAL_gated_mae_m": 2587.1,
+        "COMBINED_unmitigated_mae_m": 2909.9,
+        "COMBINED_gated_mae_m": 2566.6
       },
       "tug | first ping (no turn rate)": {
         "predictions": 310,
-        "NOMINAL_unmitigated_mae_m": 1583.9,
-        "NOMINAL_gated_mae_m": 1603.3,
-        "COMBINED_unmitigated_mae_m": 1468.5,
-        "COMBINED_gated_mae_m": 1541.9
+        "NOMINAL_unmitigated_mae_m": 1568.3,
+        "NOMINAL_gated_mae_m": 1610.9,
+        "COMBINED_unmitigated_mae_m": 1463.9,
+        "COMBINED_gated_mae_m": 1521.3
       },
       "tug | gentle (5-20)": {
-        "predictions": 10069,
-        "NOMINAL_unmitigated_mae_m": 1030.8,
-        "NOMINAL_gated_mae_m": 1035.7,
-        "COMBINED_unmitigated_mae_m": 1050.0,
-        "COMBINED_gated_mae_m": 1024.6
+        "predictions": 10054,
+        "NOMINAL_unmitigated_mae_m": 1010.0,
+        "NOMINAL_gated_mae_m": 1012.7,
+        "COMBINED_unmitigated_mae_m": 1030.4,
+        "COMBINED_gated_mae_m": 998.0
       },
       "tug | sharp (20-60)": {
-        "predictions": 2332,
-        "NOMINAL_unmitigated_mae_m": 1592.3,
-        "NOMINAL_gated_mae_m": 1622.7,
-        "COMBINED_unmitigated_mae_m": 1607.1,
-        "COMBINED_gated_mae_m": 1548.1
+        "predictions": 2323,
+        "NOMINAL_unmitigated_mae_m": 1541.9,
+        "NOMINAL_gated_mae_m": 1568.3,
+        "COMBINED_unmitigated_mae_m": 1554.3,
+        "COMBINED_gated_mae_m": 1493.3
       },
       "tug | slow (<3 kn)": {
-        "predictions": 8749,
-        "NOMINAL_unmitigated_mae_m": 865.6,
-        "NOMINAL_gated_mae_m": 870.6,
-        "COMBINED_unmitigated_mae_m": 871.5,
-        "COMBINED_gated_mae_m": 863.1
+        "predictions": 8746,
+        "NOMINAL_unmitigated_mae_m": 856.7,
+        "NOMINAL_gated_mae_m": 860.5,
+        "COMBINED_unmitigated_mae_m": 862.3,
+        "COMBINED_gated_mae_m": 861.2
       },
       "tug | steady (<5 deg/min)": {
-        "predictions": 37566,
-        "NOMINAL_unmitigated_mae_m": 550.7,
-        "NOMINAL_gated_mae_m": 553.1,
-        "COMBINED_unmitigated_mae_m": 590.8,
-        "COMBINED_gated_mae_m": 555.4
+        "predictions": 37506,
+        "NOMINAL_unmitigated_mae_m": 546.4,
+        "NOMINAL_gated_mae_m": 546.4,
+        "COMBINED_unmitigated_mae_m": 585.1,
+        "COMBINED_gated_mae_m": 546.4
       },
       "tug | very sharp (>60)": {
-        "predictions": 715,
-        "NOMINAL_unmitigated_mae_m": 1994.2,
-        "NOMINAL_gated_mae_m": 2060.4,
-        "COMBINED_unmitigated_mae_m": 2007.2,
-        "COMBINED_gated_mae_m": 1943.2
+        "predictions": 702,
+        "NOMINAL_unmitigated_mae_m": 1723.1,
+        "NOMINAL_gated_mae_m": 1796.5,
+        "COMBINED_unmitigated_mae_m": 1696.8,
+        "COMBINED_gated_mae_m": 1642.1
       }
     }
   },
@@ -174,26 +174,26 @@
     },
     "results": {
       "SHORT_STALE": {
-        "corrupted_fast_pings_W2_W5_pct": 39.9,
-        "gate_catch_rate_pct": 71.2,
+        "corrupted_fast_pings_W2_W5_pct": 39.8,
+        "gate_catch_rate_pct": 71.8,
         "gate_false_alarm_pct": 2.3,
-        "data_discarded_pct_at_W6_retrain": 19.2,
-        "gate_off_mae_m": 678.9,
-        "gate_off_cargo_mae_m": 558.3,
-        "gate_on_mae_m": 681.7,
-        "gate_on_cargo_mae_m": 550.8
+        "data_discarded_pct_at_W6_retrain": 19.3,
+        "gate_off_mae_m": 665.6,
+        "gate_off_cargo_mae_m": 553.0,
+        "gate_on_mae_m": 667.8,
+        "gate_on_cargo_mae_m": 547.2
       },
       "GPS_BIAS": {
-        "corrupted_fast_pings_W2_W5_pct": 24.8,
-        "gate_catch_rate_pct": 7.1,
-        "gate_false_alarm_pct": 2.2,
-        "data_discarded_pct_at_W6_retrain": 2.6,
-        "gate_off_mae_m": 675.3,
-        "gate_off_cargo_mae_m": 544.2,
-        "gate_on_mae_m": 679.1,
-        "gate_on_cargo_mae_m": 549.3
+        "corrupted_fast_pings_W2_W5_pct": 25.6,
+        "gate_catch_rate_pct": 7.9,
+        "gate_false_alarm_pct": 2.3,
+        "data_discarded_pct_at_W6_retrain": 2.7,
+        "gate_off_mae_m": 662.8,
+        "gate_off_cargo_mae_m": 539.3,
+        "gate_on_mae_m": 666.6,
+        "gate_on_cargo_mae_m": 548.8
       }
     }
   },
-  "created_utc": "2026-10-23T19:01:32Z"
+  "created_utc": "2026-10-23T20:22:42Z"
 }

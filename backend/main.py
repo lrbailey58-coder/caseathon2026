@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 
 from backend.db import (
     CONDITION_LABELS,
+    DATA_SOURCE,
     DB_PATH,
     REPO_ROOT,
     WINDOW_LABELS,
@@ -78,6 +79,7 @@ class HitlAlertPayload(BaseModel):
     explanation: str
     cog_delta_deg_per_min: float = 4.2
     false_positive_gate_flag: bool = False
+    clean_false_alarm_pct: float | None = None  # real data: % of this ship's valid reports the gate flags on clean data
 
 
 class ScenarioResponse(BaseModel):
@@ -203,6 +205,7 @@ def get_health() -> dict[str, object]:
         "experiment_metrics_rows": metrics_rows,
         "region": "Port of Virginia / Chesapeake Bay Approach",
         "logged_hitl_interventions": logged_interventions,
+        "data_source": DATA_SOURCE,
     }
 
 
@@ -273,7 +276,14 @@ def get_scenario(
                 uncertainty_poly_json,
                 tier1_divergence_m,
                 staleness_min,
-                trust_score
+                trust_score,
+                example_mae_m,
+                example_tail_95_m,
+                example_discarded_pct,
+                example_deferred_pct,
+                max_turn_deg_per_min,
+                clean_false_alarm_pct,
+                explanation
             FROM vessel_trajectories
             WHERE condition = ? AND mitigated = ? AND window_id = ? AND vessel_type = ?
             LIMIT 1
@@ -296,9 +306,19 @@ def get_scenario(
         divergence_m = float(traj_row[6])
         traj_staleness_min = float(traj_row[7])
         trust_score = float(traj_row[8])
+        # Real-export fields for this example ship (all None when the demo seed data is showing)
+        example_mae, example_tail_95, example_discarded, example_deferred = traj_row[9:13]
+        max_turn_deg_per_min, clean_false_alarm_pct, real_explanation = traj_row[13:16]
+        has_real_example = example_mae is not None
 
         # Adjust local scenario metrics when inspecting the Req. 7 Harbor Tug rare maneuver boundary case
-        if vessel_type == "HARBOR_TUG_RARE_MANEUVER":
+        if vessel_type == "HARBOR_TUG_RARE_MANEUVER" and has_real_example:
+            # Real data: this tug's own error, flagged share and hand-off share from the ML export
+            mae = float(example_mae)
+            tail_95 = float(example_tail_95)
+            discarded_pct = float(example_discarded)
+            deferred_pct = float(example_deferred)
+        elif vessel_type == "HARBOR_TUG_RARE_MANEUVER":  # demo values (no real results file)
             if mitigated:
                 # Adverse tradeoff: Trust Gate discards 82% of valid high-frequency turn updates, causing turn lag
                 mae = round(268.0 + (window - 1) * 14.5, 1)
@@ -354,7 +374,7 @@ def get_scenario(
 
     is_tug_maneuver = vessel_type == "HARBOR_TUG_RARE_MANEUVER"
     requires_review = is_tug_maneuver or (condition != "NOMINAL" and window >= 2)
-    explanation = build_explanation(
+    explanation = str(real_explanation) if real_explanation else build_explanation(
         condition=condition,
         window_id=window,
         staleness_min=staleness_min,
@@ -362,6 +382,12 @@ def get_scenario(
         divergence_m=divergence_m,
         vessel_type=vessel_type,
     )
+    if has_real_example:
+        cog_delta = float(max_turn_deg_per_min)
+        false_positive_flag = is_tug_maneuver and float(clean_false_alarm_pct) > 0
+    else:  # demo values
+        cog_delta = 64.2 if is_tug_maneuver else 4.2
+        false_positive_flag = is_tug_maneuver
 
     return ScenarioResponse(
         condition=condition,
@@ -391,8 +417,9 @@ def get_scenario(
             trust_score=trust_score,
             requires_human_review=requires_review,
             explanation=explanation,
-            cog_delta_deg_per_min=64.2 if is_tug_maneuver else 4.2,
-            false_positive_gate_flag=is_tug_maneuver,
+            cog_delta_deg_per_min=cog_delta,
+            false_positive_gate_flag=false_positive_flag,
+            clean_false_alarm_pct=float(clean_false_alarm_pct) if has_real_example else None,
         ),
     )
 
@@ -442,6 +469,9 @@ def get_matrix_summary(
     finally:
         conn.close()
 
+    # Clean data without the countermeasure = the reference for "damage undone"
+    clean_unmit_mae = next((float(r[3]) for r in rows if str(r[0]) == "NOMINAL" and not bool(r[1])), None)
+
     runs: list[MatrixRunEntry] = []
     for idx, row in enumerate(rows, start=1):
         cond = str(row[0])  # type: ignore[assignment]
@@ -455,7 +485,14 @@ def get_matrix_summary(
         latency_ms = float(row[7])
         unmit_mae = float(row[8])
 
-        if is_mitigated and unmit_mae > 0:
+        # Recovery = share of the poisoning damage the countermeasure undid:
+        #   (error without countermeasure - error with it) / (error without countermeasure - clean error)
+        # For clean data there is no damage, so it shows the countermeasure's cost instead
+        # (relative change vs. no countermeasure; negative = slightly worse).
+        damage = unmit_mae - clean_unmit_mae if clean_unmit_mae is not None else 0.0
+        if is_mitigated and cond != "NOMINAL" and damage > 1e-9:
+            recovery_gain_pct = round((unmit_mae - mae) / damage * 100.0, 1)
+        elif is_mitigated and unmit_mae > 0:
             recovery_gain_pct = round(((unmit_mae - mae) / unmit_mae) * 100.0, 1)
         else:
             recovery_gain_pct = 0.0
@@ -679,6 +716,53 @@ def get_hitl_logs(
     )
 
 
+def _failure_mode_summary() -> dict[str, object]:
+    """Requirement 7 boundary case: the real W6 tug example when real results are loaded, else the demo text."""
+    if DATA_SOURCE.get("kind") == "real":
+        conn = get_connection()
+        try:
+            rows = conn.execute(
+                """
+                SELECT mitigated, vessel_name, mmsi, voyage_id, max_turn_deg_per_min, clean_false_alarm_pct,
+                       example_mae_m, example_discarded_pct, example_deferred_pct, explanation
+                FROM vessel_trajectories
+                WHERE vessel_type = 'HARBOR_TUG_RARE_MANEUVER' AND window_id = 6 AND condition = 'NOMINAL'
+                ORDER BY mitigated
+                """
+            ).fetchall()
+        finally:
+            conn.close()
+        if len(rows) == 2:
+            off, on = rows
+            return {
+                "preset_id": "HARBOR_TUG_RARE_MANEUVER",
+                "source": "real AIS voyage (W6, clean data, so every gate flag is a false alarm)",
+                "vessel": f"{on[1]} (MMSI {on[2]}, voyage {on[3]})",
+                "max_turn_deg_per_min": on[4],
+                "clean_false_alarm_pct": on[5],
+                "example_error_gate_off_m": off[6],
+                "example_error_gate_on_m": on[6],
+                "share_of_its_fast_reports_flagged_pct": on[7],
+                "share_of_its_predictions_handed_to_human_pct": on[8],
+                "adverse_tradeoff": on[9],
+                "proposed_next_step": (
+                    "Compare fast-feed reports against a curved path (anchor positions plus their headings) "
+                    "instead of a straight line between anchors, then re-test sharp-turn false alarms."
+                ),
+            }
+    return {
+        "preset_id": "HARBOR_TUG_RARE_MANEUVER",
+        "source": "demo values (no real results file loaded)",
+        "vessel": "TUG CAPE HENRY (MMSI 367004890)",
+        "maneuver": "High-G legitimate emergency escort turn in Norfolk channel (COG delta = 64.2 deg/min > 45 deg/min threshold)",
+        "adverse_tradeoff": (
+            "Kinematic + Tier-1 Anchor Trust Gate falsely flags 82.4% of valid high-frequency Tier-2 turn updates "
+            "as Low-Quality / Sensor Spikes, causing the mitigated model to lag along the pre-turn anchor tangent "
+            "until Watch Officer manual waypoint verification."
+        ),
+    }
+
+
 @app.get("/api/export/results")
 def export_results_bundle() -> dict[str, object]:
     """Export a clean machine-readable JSON bundle containing the 8-condition metrics table,
@@ -766,20 +850,8 @@ def export_results_bundle() -> dict[str, object]:
             ),
             "recent_audit_trail": [item.model_dump() for item in hitl_summary.logs],
         },
-        "failure_mode_boundary_analysis": {
-            "preset_id": "HARBOR_TUG_RARE_MANEUVER",
-            "vessel": "TUG CAPE HENRY (MMSI 367004890)",
-            "maneuver": "High-G legitimate emergency escort turn in Norfolk channel (COG delta = 64.2 deg/min > 45 deg/min threshold)",
-            "adverse_tradeoff": (
-                "Kinematic + Tier-1 Anchor Trust Gate falsely flags 82.4% of valid high-frequency Tier-2 turn updates "
-                "as Low-Quality / Sensor Spikes, causing the mitigated model to lag along the pre-turn anchor tangent "
-                "until Watch Officer manual waypoint verification."
-            ),
-            "governance_checkpoint": (
-                "Exempt AIS Ship Types 31, 32, 52 (Tug/Pilot Escort) from cargo turn-rate rejection caps (>45 deg/min) "
-                "at speeds <14 kn and route 100% of high-G turns with wide quantile cones to Watch Officer review."
-            ),
-        },
+        "data_source": DATA_SOURCE,
+        "failure_mode_boundary_analysis": _failure_mode_summary(),
     }
 
 

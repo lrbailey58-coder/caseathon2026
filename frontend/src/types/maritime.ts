@@ -30,6 +30,7 @@ export interface HitlAlertPayload {
   requires_human_review: boolean
   explanation: string
   cog_delta_deg_per_min?: number
+  clean_false_alarm_pct?: number | null
   false_positive_gate_flag?: boolean
 }
 

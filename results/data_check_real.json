@@ -1,9 +1,9 @@
 {
   "database": "maritime_case.duckdb",
-  "checked_utc": "2026-10-23T18:52:25Z",
+  "checked_utc": "2026-10-23T20:10:40Z",
   "summary": {
     "PASS": 16,
-    "WARN": 5,
+    "WARN": 6,
     "FAIL": 0
   },
   "checks": [
@@ -29,9 +29,9 @@
       "status": "PASS",
       "detail": {
         "raw_reference_ais": 671747,
-        "COMBINED": 671747,
-        "LOW_QUALITY": 671747,
         "NOMINAL": 671747,
+        "LOW_QUALITY": 671747,
+        "COMBINED": 671747,
         "STALE": 671747
       }
     },
@@ -102,6 +102,23 @@
         "single_ping": 840,
         "20_min_or_longer": 7205,
         "median_minutes": 64.0
+      }
+    },
+    {
+      "check": "voyages that are not one real ship (loader drops them)",
+      "status": "WARN",
+      "detail": {
+        "voyages": 4,
+        "by_reason": {
+          "teleports": 4
+        },
+        "voyage_ids": [
+          "200000000_4",
+          "212746000_5",
+          "367309390_28",
+          "636019342_9"
+        ],
+        "rule": ">= 2 jumps between reports implying > 50 kn"
       }
     },
     {
