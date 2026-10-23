@@ -32,9 +32,12 @@ Field notes (also written into the file):
                               the gate on CLEAN data (the Requirement 7 failure case)
   tracks                      ground truth = true position 15 min after each ping;
                               predictions = predicted position 15 min after each ping
+                              (each point is a separate 15-min forecast). Tugs: only the
+                              30 minutes around their sharpest turn are drawn
   uncertainty polygon         a band around the gate-on prediction, as wide as each
-                              prediction's 90% uncertainty radius; empty with the gate off
-                              (no range models without the countermeasure)
+                              prediction's 90% uncertainty radius (for tracks with a turn
+                              > 60 deg: one outline around all the uncertainty circles, since
+                              a band would fold over itself); empty with the gate off
   trust / divergence          what the gate sees in that ship's fast-feed pings for the
                               selected condition and window (median distance from the
                               anchor track, mean trust score)
@@ -75,6 +78,7 @@ SHARP_TURN_DEG_PER_MIN = 20.0
 MIN_SPEED_FOR_TURN_KN = 3.0  # heading is unreliable for nearly stopped ships
 TUG_MIN_SHARP_REPORTS = 10
 TUG_MAX_HOURS = 6.0
+TUG_FOCUS_MINUTES = 30  # map shows this much time around the tug's sharpest turn
 PRESETS = {"CARGO_CONTAINER": 0, "HARBOR_TUG_RARE_MANEUVER": 2}  # dashboard preset -> vessel_group
 CONDITION_TEXT = {"NOMINAL": "Clean feeds", "STALE": "Stale poisoning", "LOW_QUALITY": "Low-quality poisoning",
                   "COMBINED": "Combined poisoning"}
@@ -153,6 +157,70 @@ def band_polygon(lat: np.ndarray, lon: np.ndarray, radius_m: np.ndarray) -> list
     r_lat, r_lon = offset_m_to_latlon(lat, lon, -left_n * radius_m, -left_e * radius_m)
     pts = list(zip(l_lat, l_lon)) + list(zip(r_lat[::-1], r_lon[::-1]))
     return [[round(float(a), 6), round(float(b), 6)] for a, b in pts]
+
+
+def _max_turn_deg(lat: np.ndarray, lon: np.ndarray) -> float:
+    """Largest change of direction (degrees) between consecutive segments of a track."""
+    north, east = (np.diff(lat) * 111_195.0), (np.diff(lon) * 111_195.0 * np.cos(np.radians(lat[1:])))
+    keep = np.hypot(north, east) > 1.0  # ignore repeated points
+    heading = np.degrees(np.arctan2(east[keep], north[keep]))
+    if heading.size < 2:
+        return 0.0
+    return float(np.max(np.abs((np.diff(heading) + 180) % 360 - 180)))
+
+
+def _convex_hull(points: np.ndarray) -> np.ndarray:
+    """Convex hull of 2-D points (Andrew's monotone chain), counter-clockwise, no repeats."""
+    pts = np.unique(points, axis=0)
+    if len(pts) < 3:
+        return pts
+    cross = lambda o, a, b: (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+    lower, upper = [], []
+    for p in pts:
+        while len(lower) >= 2 and cross(lower[-2], lower[-1], p) <= 0:
+            lower.pop()
+        lower.append(p)
+    for p in pts[::-1]:
+        while len(upper) >= 2 and cross(upper[-2], upper[-1], p) <= 0:
+            upper.pop()
+        upper.append(p)
+    return np.array(lower[:-1] + upper[:-1])
+
+
+def uncertainty_outline(lat: np.ndarray, lon: np.ndarray, radius_m: np.ndarray) -> list[list[float]]:
+    """The uncertainty area around a predicted track, as one simple (non-crossing) polygon.
+
+    Smooth tracks get a band (each point pushed left and right by its radius). A band
+    folds over itself where a track turns sharply, so tracks with a turn > 60 degrees get
+    the outline around all the uncertainty circles instead (convex hull).
+    """
+    if len(lat) < 2:
+        return []
+    if _max_turn_deg(lat, lon) <= 60.0:
+        return band_polygon(lat, lon, radius_m)
+    lat0, lon0 = float(np.mean(lat)), float(np.mean(lon))
+    north = (lat - lat0) * 111_195.0
+    east = (lon - lon0) * 111_195.0 * np.cos(np.radians(lat0))
+    angles = np.linspace(0, 2 * np.pi, 16, endpoint=False)
+    circles = np.concatenate([
+        np.column_stack([n + r * np.cos(angles), e + r * np.sin(angles)]) for n, e, r in zip(north, east, radius_m)
+    ])
+    hull = _convex_hull(circles)
+    h_lat, h_lon = offset_m_to_latlon(lat0, lon0, hull[:, 0], hull[:, 1])
+    return [[round(float(a), 6), round(float(b), 6)] for a, b in zip(h_lat, h_lon)]
+
+
+def focus_rows(full: pd.DataFrame, preset: str) -> pd.DataFrame:
+    """Rows to draw on the map. Tugs: the 30 minutes around their sharpest turn (the failure
+    moment), because a whole hour of harbor work drawn as one line is unreadable."""
+    if preset != "HARBOR_TUG_RARE_MANEUVER":
+        return full
+    moving = full[full["sog"] >= MIN_SPEED_FOR_TURN_KN]
+    if moving.empty:
+        return full
+    center = moving.loc[moving["d_cog_per_min"].abs().idxmax(), "timestamp"]
+    window = full[(full["timestamp"] - center).abs() <= pd.Timedelta(minutes=TUG_FOCUS_MINUTES / 2)]
+    return window if len(window) >= 5 else full
 
 
 def track(lat, lon) -> list[list[float]]:
@@ -307,7 +375,8 @@ def build() -> dict:
 
             for preset, voyage in examples[w].items():
                 full = tests[w][tests[w]["voyage_id"] == voyage].sort_values("timestamp")
-                ex = full.iloc[thin(np.arange(len(full)))]
+                shown = focus_rows(full, preset)
+                ex = shown.iloc[thin(np.arange(len(shown)))]
                 off_lat, off_lon = predicted_track(bundles[False], ex)
                 on_lat, on_lon = predicted_track(bundles[True], ex)
                 radius_ex = uncertainty_radius_m(predict_range(bundles[True]["uncertainty"], ex))
@@ -327,7 +396,7 @@ def build() -> dict:
                         "ground_truth_json": track(ex["target_lat"], ex["target_lon"]),
                         "unmitigated_pred_json": track(off_lat, off_lon),
                         "mitigated_pred_json": track(on_lat, on_lon),
-                        "uncertainty_poly_json": band_polygon(on_lat, on_lon, radius_ex) if mitigated else [],
+                        "uncertainty_poly_json": uncertainty_outline(on_lat, on_lon, radius_ex) if mitigated else [],
                         "tier1_divergence_m": view[0],
                         "staleness_min": stale[(cond, w)][1],
                         "trust_score": view[1],
