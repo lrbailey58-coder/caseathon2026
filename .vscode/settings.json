@@ -1,6 +1,14 @@
 {
     "python-envs.defaultEnvManager": "ms-python.python:venv",
-    "sqltools.connections": [],
+    "sqltools.connections": [
+        {
+            "name": "DuckDB",
+            "accessMode": "Read Only",
+            "previewLimit": 50,
+            "driver": "DuckDB",
+            "databaseFilePath": "C:\\Users\\ryder\\OneDrive\\Documents\\Git Repositories\\caseathon2026\\backend\\maritime_case.duckdb"
+        }
+    ],
     "workbench.editorAssociations": {
         "*.copilotmd": "vscode.markdown.preview.editor",
         "*.parquet": "duckdb.dataFileViewer",
