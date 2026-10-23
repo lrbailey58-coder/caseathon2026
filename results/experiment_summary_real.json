@@ -2,343 +2,343 @@
   "run": "experiment_summary",
   "final_window": "W6 (previously unseen; models trained on W1-W5)",
   "test_cases": {
-    "predictions": 25578,
-    "voyages": 323,
-    "cargo_voyages": 40
+    "predictions": 88912,
+    "voyages": 1168,
+    "cargo_voyages": 256
   },
   "eight_runs": [
     {
       "condition": "NOMINAL",
       "countermeasure": "none",
-      "avg_error_m": 667.6,
+      "avg_error_m": 676.6,
       "avg_error_95pct_range_m": [
-        601.1,
-        735.0
+        644.6,
+        714.4
       ],
-      "tail_95_error_m": 2422.9,
-      "cargo_avg_error_m": 533.0,
+      "tail_95_error_m": 2462.2,
+      "cargo_avg_error_m": 544.5,
       "cargo_avg_error_95pct_range_m": [
-        465.6,
-        629.2
+        510.7,
+        578.9
       ],
       "data_discarded_pct": 0.0,
       "handed_to_human_pct": 0.0,
       "gate_major_catch_pct": null,
-      "physics_avg_error_m": 923.1
+      "physics_avg_error_m": 1004.9
     },
     {
       "condition": "NOMINAL",
       "countermeasure": "gate + human hand-off",
-      "avg_error_m": 668.1,
+      "avg_error_m": 680.5,
       "avg_error_95pct_range_m": [
-        602.6,
-        734.5
+        647.9,
+        718.7
       ],
-      "tail_95_error_m": 2439.2,
-      "cargo_avg_error_m": 544.5,
+      "tail_95_error_m": 2485.3,
+      "cargo_avg_error_m": 545.9,
       "cargo_avg_error_95pct_range_m": [
-        473.8,
-        640.5
+        511.1,
+        580.9
       ],
-      "data_discarded_pct": 1.85,
-      "handed_to_human_pct": 15.63,
+      "data_discarded_pct": 1.86,
+      "handed_to_human_pct": 19.09,
       "gate_major_catch_pct": null,
-      "physics_avg_error_m": 923.1
+      "physics_avg_error_m": 1004.9
     },
     {
       "condition": "STALE",
       "countermeasure": "none",
-      "avg_error_m": 693.0,
+      "avg_error_m": 700.8,
       "avg_error_95pct_range_m": [
-        632.9,
-        755.4
+        669.0,
+        737.5
       ],
-      "tail_95_error_m": 2343.9,
-      "cargo_avg_error_m": 591.3,
+      "tail_95_error_m": 2391.0,
+      "cargo_avg_error_m": 585.5,
       "cargo_avg_error_95pct_range_m": [
-        517.2,
-        694.1
+        552.2,
+        619.6
       ],
       "data_discarded_pct": 0.0,
       "handed_to_human_pct": 0.0,
       "gate_major_catch_pct": null,
-      "physics_avg_error_m": 923.1
+      "physics_avg_error_m": 1004.9
     },
     {
       "condition": "STALE",
       "countermeasure": "gate + human hand-off",
-      "avg_error_m": 668.9,
+      "avg_error_m": 680.7,
       "avg_error_95pct_range_m": [
-        606.5,
-        732.2
+        648.1,
+        718.4
       ],
-      "tail_95_error_m": 2423.5,
-      "cargo_avg_error_m": 548.1,
+      "tail_95_error_m": 2467.7,
+      "cargo_avg_error_m": 550.9,
       "cargo_avg_error_95pct_range_m": [
-        476.0,
-        646.1
+        516.2,
+        586.0
       ],
-      "data_discarded_pct": 22.26,
-      "handed_to_human_pct": 16.02,
-      "gate_major_catch_pct": 95.0,
-      "physics_avg_error_m": 923.1,
-      "damage_undone_pct_all": 94.7,
-      "damage_undone_pct_cargo": 74.2
+      "data_discarded_pct": 22.66,
+      "handed_to_human_pct": 19.07,
+      "gate_major_catch_pct": 94.5,
+      "physics_avg_error_m": 1004.9,
+      "damage_undone_pct_all": 83.3,
+      "damage_undone_pct_cargo": 84.5
     },
     {
       "condition": "LOW_QUALITY",
       "countermeasure": "none",
-      "avg_error_m": 687.1,
+      "avg_error_m": 690.0,
       "avg_error_95pct_range_m": [
-        618.3,
-        757.1
+        656.9,
+        728.1
       ],
-      "tail_95_error_m": 2434.3,
-      "cargo_avg_error_m": 572.2,
+      "tail_95_error_m": 2469.1,
+      "cargo_avg_error_m": 562.5,
       "cargo_avg_error_95pct_range_m": [
-        495.1,
-        675.9
+        527.2,
+        598.5
       ],
       "data_discarded_pct": 0.0,
       "handed_to_human_pct": 0.0,
       "gate_major_catch_pct": null,
-      "physics_avg_error_m": 923.1
+      "physics_avg_error_m": 1004.9
     },
     {
       "condition": "LOW_QUALITY",
       "countermeasure": "gate + human hand-off",
-      "avg_error_m": 667.7,
+      "avg_error_m": 675.9,
       "avg_error_95pct_range_m": [
-        604.7,
-        731.8
+        643.6,
+        713.5
       ],
-      "tail_95_error_m": 2394.1,
-      "cargo_avg_error_m": 548.8,
+      "tail_95_error_m": 2441.6,
+      "cargo_avg_error_m": 548.3,
       "cargo_avg_error_95pct_range_m": [
-        477.8,
-        647.4
+        514.4,
+        583.0
       ],
-      "data_discarded_pct": 17.47,
-      "handed_to_human_pct": 16.55,
-      "gate_major_catch_pct": 54.9,
-      "physics_avg_error_m": 923.1,
-      "damage_undone_pct_all": 99.5,
-      "damage_undone_pct_cargo": 59.9
+      "data_discarded_pct": 16.36,
+      "handed_to_human_pct": 19.56,
+      "gate_major_catch_pct": 50.1,
+      "physics_avg_error_m": 1004.9,
+      "damage_undone_pct_all": 105.4,
+      "damage_undone_pct_cargo": 78.8
     },
     {
       "condition": "COMBINED",
       "countermeasure": "none",
-      "avg_error_m": 717.7,
+      "avg_error_m": 714.7,
       "avg_error_95pct_range_m": [
-        653.6,
-        781.8
+        681.5,
+        751.8
       ],
-      "tail_95_error_m": 2398.6,
-      "cargo_avg_error_m": 642.5,
+      "tail_95_error_m": 2428.1,
+      "cargo_avg_error_m": 600.8,
       "cargo_avg_error_95pct_range_m": [
-        551.0,
-        765.2
+        565.3,
+        636.4
       ],
       "data_discarded_pct": 0.0,
       "handed_to_human_pct": 0.0,
       "gate_major_catch_pct": null,
-      "physics_avg_error_m": 923.1
+      "physics_avg_error_m": 1004.9
     },
     {
       "condition": "COMBINED",
       "countermeasure": "gate + human hand-off",
-      "avg_error_m": 668.7,
+      "avg_error_m": 677.9,
       "avg_error_95pct_range_m": [
-        603.2,
-        736.0
+        645.3,
+        715.8
       ],
-      "tail_95_error_m": 2403.1,
-      "cargo_avg_error_m": 550.8,
+      "tail_95_error_m": 2452.4,
+      "cargo_avg_error_m": 550.5,
       "cargo_avg_error_95pct_range_m": [
-        477.6,
-        650.2
+        515.8,
+        586.3
       ],
-      "data_discarded_pct": 31.2,
-      "handed_to_human_pct": 16.39,
-      "gate_major_catch_pct": 79.6,
-      "physics_avg_error_m": 923.1,
-      "damage_undone_pct_all": 97.9,
-      "damage_undone_pct_cargo": 83.8
+      "data_discarded_pct": 30.98,
+      "handed_to_human_pct": 18.97,
+      "gate_major_catch_pct": 77.6,
+      "physics_avg_error_m": 1004.9,
+      "damage_undone_pct_all": 96.6,
+      "damage_undone_pct_cargo": 89.3
     }
   ],
   "uncertainty_check": {
     "method": "bootstrap over whole test voyages, 1000 resamples, paired across runs, seed 0",
     "reading": "95% range of each number; a gap whose range includes 0 could be luck",
     "all_ships": {
-      "voyages": 323,
+      "voyages": 1168,
       "runs": {
         "NOMINAL|False": [
-          601.1,
-          735.0
+          644.6,
+          714.4
         ],
         "NOMINAL|True": [
-          602.6,
-          734.5
+          647.9,
+          718.7
         ],
         "STALE|False": [
-          632.9,
-          755.4
+          669.0,
+          737.5
         ],
         "STALE|True": [
-          606.5,
-          732.2
+          648.1,
+          718.4
         ],
         "LOW_QUALITY|False": [
-          618.3,
-          757.1
+          656.9,
+          728.1
         ],
         "LOW_QUALITY|True": [
-          604.7,
-          731.8
+          643.6,
+          713.5
         ],
         "COMBINED|False": [
-          653.6,
-          781.8
+          681.5,
+          751.8
         ],
         "COMBINED|True": [
-          603.2,
-          736.0
+          645.3,
+          715.8
         ]
       },
       "gaps": {
         "STALE": {
           "damage_m (gate off - clean)": [
-            11.0,
-            38.0
+            20.3,
+            27.9
           ],
           "gate_gain_m (gate off - gate on)": [
-            16.8,
-            32.0
+            16.6,
+            23.8
           ],
           "left_over_m (gate on - clean)": [
-            -7.5,
-            8.1
+            2.7,
+            5.2
           ]
         },
         "LOW_QUALITY": {
           "damage_m (gate off - clean)": [
-            12.7,
-            27.2
+            10.7,
+            16.1
           ],
           "gate_gain_m (gate off - gate on)": [
-            10.8,
-            28.3
+            11.8,
+            16.6
           ],
           "left_over_m (gate on - clean)": [
-            -6.2,
-            5.7
+            -1.8,
+            0.4
           ]
         },
         "COMBINED": {
           "damage_m (gate off - clean)": [
-            32.3,
-            68.7
+            33.0,
+            43.6
           ],
           "gate_gain_m (gate off - gate on)": [
-            31.1,
-            65.8
+            32.1,
+            41.7
           ],
           "left_over_m (gate on - clean)": [
-            -3.0,
-            5.0
+            -0.4,
+            2.9
           ]
         },
         "NOMINAL": {
           "gate_cost_on_clean_m (gate on - gate off)": [
-            -2.4,
-            3.4
+            2.9,
+            4.8
           ]
         }
       }
     },
     "cargo": {
-      "voyages": 40,
+      "voyages": 256,
       "runs": {
         "NOMINAL|False": [
-          465.6,
-          629.2
+          510.7,
+          578.9
         ],
         "NOMINAL|True": [
-          473.8,
-          640.5
+          511.1,
+          580.9
         ],
         "STALE|False": [
-          517.2,
-          694.1
+          552.2,
+          619.6
         ],
         "STALE|True": [
-          476.0,
-          646.1
+          516.2,
+          586.0
         ],
         "LOW_QUALITY|False": [
-          495.1,
-          675.9
+          527.2,
+          598.5
         ],
         "LOW_QUALITY|True": [
-          477.8,
-          647.4
+          514.4,
+          583.0
         ],
         "COMBINED|False": [
-          551.0,
-          765.2
+          565.3,
+          636.4
         ],
         "COMBINED|True": [
-          477.6,
-          650.2
+          515.8,
+          586.3
         ]
       },
       "gaps": {
         "STALE": {
           "damage_m (gate off - clean)": [
-            41.8,
-            78.0
+            36.1,
+            45.9
           ],
           "gate_gain_m (gate off - gate on)": [
-            28.9,
-            60.1
+            29.8,
+            39.6
           ],
           "left_over_m (gate on - clean)": [
-            8.3,
-            22.7
+            4.3,
+            8.4
           ]
         },
         "LOW_QUALITY": {
           "damage_m (gate off - clean)": [
-            23.8,
-            60.0
+            12.6,
+            24.1
           ],
           "gate_gain_m (gate off - gate on)": [
-            10.8,
-            39.0
+            9.1,
+            19.7
           ],
           "left_over_m (gate on - clean)": [
-            6.8,
-            24.9
+            2.0,
+            5.6
           ]
         },
         "COMBINED": {
           "damage_m (gate off - clean)": [
-            71.4,
-            159.1
+            47.6,
+            66.3
           ],
           "gate_gain_m (gate off - gate on)": [
-            59.1,
-            136.7
+            41.7,
+            60.0
           ],
           "left_over_m (gate on - clean)": [
-            8.7,
-            28.0
+            3.3,
+            8.8
           ]
         },
         "NOMINAL": {
           "gate_cost_on_clean_m (gate on - gate off)": [
-            6.0,
-            17.6
+            -0.1,
+            2.7
           ]
         }
       }
@@ -347,12 +347,12 @@
   "notes": [
     "Error numbers include every prediction, also the ones handed to a human.",
     "Single training run; LightGBM has no randomness here, so variability comes from which voyages were tested.",
-    "Tanker numbers are omitted: W6 has only 3 tanker voyages."
+    "Tanker numbers are omitted: W6 has only 9 tanker voyages."
   ],
   "sources": [
     "results/rolling_real.json",
     "results/gate_grading_real.json",
     "models/rolling_*_real_w6.joblib"
   ],
-  "created_utc": "2026-10-23T00:35:08Z"
+  "created_utc": "2026-10-23T19:13:25Z"
 }

@@ -149,7 +149,8 @@ def build() -> dict:
         "notes": [
             "Error numbers include every prediction, also the ones handed to a human.",
             "Single training run; LightGBM has no randomness here, so variability comes from which voyages were tested.",
-            "Tanker numbers are omitted: W6 has only 3 tanker voyages.",
+            f"Tanker numbers are omitted: W6 has only {int(test.loc[test['vessel_group'] == 1, 'voyage_id'].nunique())} "
+            "tanker voyages.",
         ],
         "sources": ["results/rolling_real.json", "results/gate_grading_real.json", "models/rolling_*_real_w6.joblib"],
         "created_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),

@@ -1,9 +1,9 @@
 {
   "database": "maritime_case.duckdb",
-  "checked_utc": "2026-10-22T21:34:31Z",
+  "checked_utc": "2026-10-23T18:52:25Z",
   "summary": {
-    "PASS": 17,
-    "WARN": 4,
+    "PASS": 16,
+    "WARN": 5,
     "FAIL": 0
   },
   "checks": [
@@ -28,11 +28,11 @@
       "check": "all 4 conditions present, same row count as raw data",
       "status": "PASS",
       "detail": {
-        "raw_reference_ais": 190149,
-        "NOMINAL": 190149,
-        "LOW_QUALITY": 190149,
-        "COMBINED": 190149,
-        "STALE": 190149
+        "raw_reference_ais": 671747,
+        "COMBINED": 671747,
+        "LOW_QUALITY": 671747,
+        "NOMINAL": 671747,
+        "STALE": 671747
       }
     },
     {
@@ -50,17 +50,18 @@
       }
     },
     {
-      "check": "speed and heading in valid ranges",
-      "status": "PASS",
+      "check": "speed and heading in valid ranges (a few source glitches)",
+      "status": "WARN",
       "detail": {
         "sog_kn": [
           0.6,
-          29.8
+          46.9
         ],
         "cog_deg": [
           0.0,
           359.9
-        ]
+        ],
+        "pings_over_40_kn (loader drops them)": 1
       }
     },
     {
@@ -75,21 +76,21 @@
         "lat": 0,
         "lon": 0,
         "sog": 0,
-        "cog": 33,
+        "cog": 120,
         "timestamp_or_voyage": 0
       }
     },
     {
       "check": "duplicate timestamps within a voyage (features keep the first)",
       "status": "WARN",
-      "detail": 202
+      "detail": 1032
     },
     {
       "check": "ping gaps within voyages <= 30 min (voyage rule)",
       "status": "PASS",
       "detail": {
-        "median_s": 71.0,
-        "p95_s": 170.0,
+        "median_s": 70.0,
+        "p95_s": 171.0,
         "max_s": 1800.0
       }
     },
@@ -97,10 +98,10 @@
       "check": "enough voyages long enough for 15-min predictions (>= 20 min)",
       "status": "PASS",
       "detail": {
-        "voyages": 2841,
-        "single_ping": 231,
-        "20_min_or_longer": 2130,
-        "median_minutes": 63.3
+        "voyages": 9680,
+        "single_ping": 840,
+        "20_min_or_longer": 7205,
+        "median_minutes": 64.0
       }
     },
     {
@@ -112,12 +113,12 @@
       "check": "6 windows, each with >= 50 voyages",
       "status": "PASS",
       "detail": {
-        "W1": "423 voyages (72 cargo, 5 tanker, 346 tug)",
-        "W2": "521 voyages (96 cargo, 6 tanker, 419 tug)",
-        "W3": "432 voyages (69 cargo, 5 tanker, 358 tug)",
-        "W4": "527 voyages (110 cargo, 6 tanker, 411 tug)",
-        "W5": "502 voyages (82 cargo, 8 tanker, 412 tug)",
-        "W6": "436 voyages (44 cargo, 3 tanker, 389 tug)"
+        "W1": "1639 voyages (291 cargo, 16 tanker, 1332 tug)",
+        "W2": "1535 voyages (242 cargo, 19 tanker, 1274 tug)",
+        "W3": "1583 voyages (254 cargo, 15 tanker, 1314 tug)",
+        "W4": "1450 voyages (223 cargo, 11 tanker, 1216 tug)",
+        "W5": "1765 voyages (348 cargo, 16 tanker, 1401 tug)",
+        "W6": "1708 voyages (404 cargo, 9 tanker, 1295 tug)"
       }
     },
     {
@@ -126,27 +127,27 @@
       "detail": {
         "W1": [
           "2025-09-01 00:00:00",
-          "2025-09-03 01:53:22"
+          "2025-09-07 22:01:13"
         ],
         "W2": [
-          "2025-09-03 01:56:51",
-          "2025-09-04 23:20:09"
+          "2025-09-07 22:05:32",
+          "2025-09-15 01:38:09"
         ],
         "W3": [
-          "2025-09-04 23:26:23",
-          "2025-09-06 17:44:14"
+          "2025-09-15 01:43:51",
+          "2025-09-21 12:03:33"
         ],
         "W4": [
-          "2025-09-06 17:49:25",
-          "2025-09-09 02:40:41"
+          "2025-09-21 12:09:48",
+          "2025-09-27 03:20:29"
         ],
         "W5": [
-          "2025-09-09 02:44:11",
-          "2025-09-11 06:33:20"
+          "2025-09-27 03:27:42",
+          "2025-10-05 05:46:07"
         ],
         "W6": [
-          "2025-09-11 06:37:21",
-          "2025-09-12 23:29:09"
+          "2025-10-05 05:58:32",
+          "2025-10-12 23:30:46"
         ]
       }
     },
@@ -158,15 +159,15 @@
     {
       "check": "cargo + tanker share of voyages",
       "status": "WARN",
-      "detail": "18% cargo/tanker, rest tugs/towing"
+      "detail": "19% cargo/tanker, rest tugs/towing"
     },
     {
       "check": "both feeds see every voyage with 2+ pings (needed by the trust gate)",
       "status": "PASS",
       "detail": {
-        "voyages_with_both": 2610,
-        "voyages_with_2plus_pings": 2610,
-        "avg_tier1_share": 0.296
+        "voyages_with_both": 8840,
+        "voyages_with_2plus_pings": 8840,
+        "avg_tier1_share": 0.3
       }
     },
     {
@@ -214,11 +215,11 @@
         },
         "STALE": {
           "W1": 0.0,
-          "W2": 13.0,
-          "W3": 26.8,
-          "W4": 43.2,
-          "W5": 61.1,
-          "W6": 61.9
+          "W2": 13.3,
+          "W3": 26.5,
+          "W4": 44.7,
+          "W5": 61.2,
+          "W6": 61.6
         }
       }
     },

@@ -36,3 +36,7 @@ frontend/.env.*
 
 # Trained models (rebuild by re-running backend/ml scripts)
 models/
+
+# 12-day backups (kept locally only)
+models_12day/
+results_12day/
