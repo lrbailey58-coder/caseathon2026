@@ -12,8 +12,10 @@ from pydantic import BaseModel, Field
 from backend.db import (
     CONDITION_LABELS,
     DB_PATH,
+    REPO_ROOT,
     WINDOW_LABELS,
     ConditionType,
+    VesselPresetType,
     build_explanation,
     get_connection,
     init_and_seed_db,
@@ -65,11 +67,14 @@ class TimelinePoint(BaseModel):
 class HitlAlertPayload(BaseModel):
     vessel_name: str
     mmsi: str
+    vessel_type: VesselPresetType = "CARGO_CONTAINER"
     tier1_vs_tier2_divergence_m: float
     staleness_minutes: float
     trust_score: float
     requires_human_review: bool
     explanation: str
+    cog_delta_deg_per_min: float = 4.2
+    false_positive_gate_flag: bool = False
 
 
 class ScenarioResponse(BaseModel):
@@ -77,6 +82,7 @@ class ScenarioResponse(BaseModel):
     mitigated: bool
     window: int
     window_label: str
+    vessel_type: VesselPresetType = "CARGO_CONTAINER"
     ground_truth_track: list[tuple[float, float]]
     unmitigated_prediction_track: list[tuple[float, float]]
     mitigated_prediction_track: list[tuple[float, float]]
@@ -115,12 +121,15 @@ class HitlOverrideRequest(BaseModel):
     review_duration_seconds: float = Field(..., ge=0.0)
     condition: ConditionType
     window: int = Field(..., ge=1, le=6)
+    operator_notes: str | None = Field(default=None)
 
 
 class HitlOverrideAuditEntry(HitlOverrideRequest):
     audit_id: int
+    vessel_name: str = "MV VIRGINIA TRADER"
     logged_at_utc: str
     model_compute_latency_ms: float
+    operator_notes: str = ""
 
 
 class HitlOverrideResponse(BaseModel):
@@ -129,6 +138,26 @@ class HitlOverrideResponse(BaseModel):
     audit_entry: HitlOverrideAuditEntry
     total_interventions_logged: int
     avg_human_review_s: float
+
+
+class HitlAuditLogItem(BaseModel):
+    id: int
+    timestamp: str
+    mmsi: str
+    vessel_name: str
+    condition: ConditionType
+    window_id: int
+    action_taken: str
+    review_duration_seconds: float
+    operator_notes: str
+    model_compute_latency_ms: float
+
+
+class HitlLogsResponse(BaseModel):
+    total_interventions: int
+    avg_human_verification_s: float
+    model_compute_latency_ms: float
+    logs: list[HitlAuditLogItem]
 
 
 def _parse_latlon_json(raw_json: str) -> list[tuple[float, float]]:
@@ -179,6 +208,10 @@ def get_scenario(
     condition: ConditionType = Query("COMBINED", description="Data degradation condition"),
     mitigated: bool = Query(True, description="Whether Anchor-Verified Trust Gate + HITL is active"),
     window: int = Query(5, ge=1, le=6, description="Rolling retraining window (1=W1 .. 6=W6)"),
+    vessel_type: VesselPresetType = Query(
+        "CARGO_CONTAINER",
+        description="Vessel scenario preset: CARGO_CONTAINER (MV VIRGINIA TRADER) or HARBOR_TUG_RARE_MANEUVER (TUG CAPE HENRY - Req. 7 boundary case)",
+    ),
 ) -> ScenarioResponse:
     init_and_seed_db()
     conn = get_connection()
@@ -239,16 +272,16 @@ def get_scenario(
                 staleness_min,
                 trust_score
             FROM vessel_trajectories
-            WHERE condition = ? AND mitigated = ? AND window_id = ?
+            WHERE condition = ? AND mitigated = ? AND window_id = ? AND vessel_type = ?
             LIMIT 1
             """,
-            (condition, mitigated, window),
+            (condition, mitigated, window, vessel_type),
         ).fetchone()
 
         if not traj_row:
             raise HTTPException(
                 status_code=404,
-                detail=f"No vessel_trajectories found for condition={condition}, mitigated={mitigated}, window={window}",
+                detail=f"No vessel_trajectories found for condition={condition}, mitigated={mitigated}, window={window}, vessel_type={vessel_type}",
             )
 
         mmsi = str(traj_row[0])
@@ -260,6 +293,21 @@ def get_scenario(
         divergence_m = float(traj_row[6])
         traj_staleness_min = float(traj_row[7])
         trust_score = float(traj_row[8])
+
+        # Adjust local scenario metrics when inspecting the Req. 7 Harbor Tug rare maneuver boundary case
+        if vessel_type == "HARBOR_TUG_RARE_MANEUVER":
+            if mitigated:
+                # Adverse tradeoff: Trust Gate discards 82% of valid high-frequency turn updates, causing turn lag
+                mae = round(268.0 + (window - 1) * 14.5, 1)
+                tail_95 = round(495.0 + (window - 1) * 28.0, 1)
+                discarded_pct = 82.4
+                deferred_pct = 100.0
+            else:
+                # Unmitigated model retains raw high-frequency Tier-2 turn pings (lower lag on clean/low drift, worse under heavy poison)
+                mae = round(92.0 + (0.0 if condition == "NOMINAL" else (window - 1) * 44.0), 1)
+                tail_95 = round(185.0 + (0.0 if condition == "NOMINAL" else (window - 1) * 86.0), 1)
+                discarded_pct = 0.0
+                deferred_pct = 0.0
 
         # 3. Query aggregate average of review_duration_seconds from hitl_audit_log
         avg_review_row = conn.execute(
@@ -301,13 +349,15 @@ def get_scenario(
     finally:
         conn.close()
 
-    requires_review = condition != "NOMINAL" and window >= 2
+    is_tug_maneuver = vessel_type == "HARBOR_TUG_RARE_MANEUVER"
+    requires_review = is_tug_maneuver or (condition != "NOMINAL" and window >= 2)
     explanation = build_explanation(
         condition=condition,
         window_id=window,
         staleness_min=staleness_min,
         corrupted_pct=corrupted_pct,
         divergence_m=divergence_m,
+        vessel_type=vessel_type,
     )
 
     return ScenarioResponse(
@@ -315,6 +365,7 @@ def get_scenario(
         mitigated=mitigated,
         window=window,
         window_label=WINDOW_LABELS.get(window, f"W{window}"),
+        vessel_type=vessel_type,
         ground_truth_track=gt_track,
         unmitigated_prediction_track=unmit_track,
         mitigated_prediction_track=mit_track,
@@ -331,11 +382,14 @@ def get_scenario(
         hitl_alert=HitlAlertPayload(
             vessel_name=vessel_name,
             mmsi=mmsi,
+            vessel_type=vessel_type,
             tier1_vs_tier2_divergence_m=divergence_m,
             staleness_minutes=traj_staleness_min,
             trust_score=trust_score,
             requires_human_review=requires_review,
             explanation=explanation,
+            cog_delta_deg_per_min=64.2 if is_tug_maneuver else 4.2,
+            false_positive_gate_flag=is_tug_maneuver,
         ),
     )
 
@@ -466,12 +520,23 @@ def post_hitl_override(payload: HitlOverrideRequest) -> HitlOverrideResponse:
             """,
             (payload.mmsi,),
         ).fetchone()
-        vessel_name = str(vessel_row[0]) if vessel_row else "MV VIRGINIA TRADER"
+        vessel_name = str(vessel_row[0]) if vessel_row else (
+            "TUG CAPE HENRY" if payload.mmsi == "367004890" else "MV VIRGINIA TRADER"
+        )
 
-        action_label = (
+        default_action_note = (
             "Deferred to Tier-1 USCG Coastal Anchor Kinematic Extrapolation"
             if payload.action == "DEFER_TO_ANCHOR_KINEMATIC"
-            else "Logged Watch Officer Manual Course Override"
+            else (
+                "Watch Officer Manual Waypoint Override: Verified legitimate high-G escort turn (COG delta > 45 deg/min)"
+                if payload.mmsi == "367004890"
+                else "Logged Watch Officer Manual Waypoint / Course Override"
+            )
+        )
+        operator_notes = (
+            payload.operator_notes.strip()
+            if payload.operator_notes and payload.operator_notes.strip()
+            else default_action_note
         )
 
         conn.execute(
@@ -497,7 +562,7 @@ def post_hitl_override(payload: HitlOverrideRequest) -> HitlOverrideResponse:
                 payload.window,
                 payload.action,
                 round(payload.review_duration_seconds, 2),
-                action_label,
+                operator_notes,
             ),
         )
 
@@ -512,18 +577,20 @@ def post_hitl_override(payload: HitlOverrideRequest) -> HitlOverrideResponse:
     entry = HitlOverrideAuditEntry(
         audit_id=next_id,
         mmsi=payload.mmsi,
+        vessel_name=vessel_name,
         action=payload.action,
         review_duration_seconds=round(payload.review_duration_seconds, 2),
         condition=payload.condition,
         window=payload.window,
         logged_at_utc=now_iso,
         model_compute_latency_ms=model_latency_ms,
+        operator_notes=operator_notes,
     )
 
     return HitlOverrideResponse(
         status="RECORDED",
         message=(
-            f"{action_label} for MMSI {payload.mmsi}. "
+            f"{operator_notes} for {vessel_name} (MMSI {payload.mmsi}). "
             f"Human verification effort ({entry.review_duration_seconds:.1f}s) logged separately "
             f"from model compute latency ({model_latency_ms:.1f}ms)."
         ),
@@ -531,3 +598,183 @@ def post_hitl_override(payload: HitlOverrideRequest) -> HitlOverrideResponse:
         total_interventions_logged=total_interventions,
         avg_human_review_s=avg_review_s,
     )
+
+
+@app.get("/api/hitl/logs", response_model=HitlLogsResponse)
+def get_hitl_logs(
+    limit: int = Query(25, ge=1, le=100, description="Maximum number of recent HITL audit log entries to return"),
+) -> HitlLogsResponse:
+    init_and_seed_db()
+    conn = get_connection()
+    try:
+        stats_row = conn.execute(
+            "SELECT COUNT(*), COALESCE(AVG(review_duration_seconds), 0.0) FROM hitl_audit_log"
+        ).fetchone()
+        total_interventions = int(stats_row[0]) if stats_row else 0
+        avg_verification_s = round(float(stats_row[1]), 2) if stats_row else 0.0
+
+        lat_row = conn.execute(
+            "SELECT COALESCE(AVG(model_compute_latency_ms), 13.4) FROM experiment_metrics WHERE mitigated = TRUE"
+        ).fetchone()
+        avg_model_latency_ms = round(float(lat_row[0]), 2) if lat_row else 13.4
+
+        rows = conn.execute(
+            """
+            SELECT
+                h.id,
+                h.timestamp,
+                h.mmsi,
+                h.vessel_name,
+                h.condition,
+                h.window_id,
+                h.action_taken,
+                h.review_duration_seconds,
+                h.operator_notes,
+                COALESCE(e.model_compute_latency_ms, 13.4) AS model_compute_latency_ms
+            FROM hitl_audit_log h
+            LEFT JOIN experiment_metrics e
+              ON h.condition = e.condition
+             AND h.window_id = e.window_id
+             AND e.mitigated = TRUE
+            ORDER BY h.id DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+    finally:
+        conn.close()
+
+    logs: list[HitlAuditLogItem] = []
+    for r in rows:
+        raw_ts = r[1]
+        if isinstance(raw_ts, datetime):
+            ts_iso = raw_ts.strftime("%Y-%m-%dT%H:%M:%SZ")
+        else:
+            ts_iso = str(raw_ts)
+
+        cond_val: ConditionType = str(r[4])  # type: ignore[assignment]
+        logs.append(
+            HitlAuditLogItem(
+                id=int(r[0]),
+                timestamp=ts_iso,
+                mmsi=str(r[2]),
+                vessel_name=str(r[3]),
+                condition=cond_val,
+                window_id=int(r[5]),
+                action_taken=str(r[6]),
+                review_duration_seconds=round(float(r[7]), 2),
+                operator_notes=str(r[8]),
+                model_compute_latency_ms=round(float(r[9]), 1),
+            )
+        )
+
+    return HitlLogsResponse(
+        total_interventions=total_interventions,
+        avg_human_verification_s=avg_verification_s,
+        model_compute_latency_ms=avg_model_latency_ms,
+        logs=logs,
+    )
+
+
+@app.get("/api/export/results")
+def export_results_bundle() -> dict[str, object]:
+    """Export a clean machine-readable JSON bundle containing the 8-condition metrics table,
+    dataset manifest metadata, modification log summary, and HITL latency stats."""
+    init_and_seed_db()
+
+    # 1. 8-run experimental matrix on unseen evaluation window W6 (plus all windows W1..W6)
+    w6_matrix = get_matrix_summary(window=6)
+    hitl_summary = get_hitl_logs(limit=25)
+
+    conn = get_connection()
+    try:
+        all_metrics_rows = conn.execute(
+            """
+            SELECT
+                condition,
+                mitigated,
+                window_id,
+                displacement_mae_m,
+                tail_95_error_m,
+                data_discarded_pct,
+                decisions_deferred_pct,
+                tier2_corrupted_volume_pct,
+                avg_data_staleness_min,
+                model_compute_latency_ms
+            FROM experiment_metrics
+            ORDER BY window_id ASC, condition ASC, mitigated ASC
+            """
+        ).fetchall()
+    finally:
+        conn.close()
+
+    rolling_metrics_all_windows = [
+        {
+            "condition": str(r[0]),
+            "mitigated": bool(r[1]),
+            "window_id": int(r[2]),
+            "window_label": WINDOW_LABELS.get(int(r[2]), f"W{int(r[2])}"),
+            "displacement_mae_m": float(r[3]),
+            "tail_95_error_m": float(r[4]),
+            "data_discarded_pct": float(r[5]),
+            "decisions_deferred_pct": float(r[6]),
+            "tier2_corrupted_volume_pct": float(r[7]),
+            "avg_data_staleness_min": float(r[8]),
+            "model_compute_latency_ms": float(r[9]),
+        }
+        for r in all_metrics_rows
+    ]
+
+    # 2. Load dataset manifest metadata
+    manifest_path = REPO_ROOT / "backend" / "database" / "manifest.json"
+    dataset_manifest: dict[str, object] = {}
+    if manifest_path.exists():
+        try:
+            dataset_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except Exception:
+            dataset_manifest = {"error": "Unable to parse manifest.json"}
+
+    # 3. Load modification log summary
+    mod_log_path = REPO_ROOT / "backend" / "database" / "modification_log.json"
+    modification_log_summary: dict[str, object] = {}
+    if mod_log_path.exists():
+        try:
+            modification_log_summary = json.loads(mod_log_path.read_text(encoding="utf-8"))
+        except Exception:
+            modification_log_summary = {"error": "Unable to parse modification_log.json"}
+
+    return {
+        "schema_version": "1.0.0",
+        "exported_at_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "project": "NEPTUNE-GUARD // W&M AI Case-a-thon 2026 (Unintentional Data Poisoning)",
+        "evaluation_unit": "Complete chronological vessel voyages (15-minute ahead prediction horizon)",
+        "primary_metrics": ["displacement_mae_m", "tail_95_error_m"],
+        "eight_condition_metrics_table_w6": [run.model_dump() for run in w6_matrix.runs],
+        "rolling_window_metrics_w1_to_w6": rolling_metrics_all_windows,
+        "dataset_manifest_metadata": dataset_manifest,
+        "modification_log_summary": modification_log_summary,
+        "hitl_oversight_and_latency_stats": {
+            "total_interventions": hitl_summary.total_interventions,
+            "avg_human_verification_seconds": hitl_summary.avg_human_verification_s,
+            "avg_model_compute_latency_ms": hitl_summary.model_compute_latency_ms,
+            "latency_separation_note": (
+                "Model compute latency (milliseconds) is tracked and reported strictly separately "
+                "from Watch Officer human verification/override duration (seconds)."
+            ),
+            "recent_audit_trail": [item.model_dump() for item in hitl_summary.logs],
+        },
+        "failure_mode_boundary_analysis": {
+            "preset_id": "HARBOR_TUG_RARE_MANEUVER",
+            "vessel": "TUG CAPE HENRY (MMSI 367004890)",
+            "maneuver": "High-G legitimate emergency escort turn in Norfolk channel (COG delta = 64.2 deg/min > 45 deg/min threshold)",
+            "adverse_tradeoff": (
+                "Kinematic + Tier-1 Anchor Trust Gate falsely flags 82.4% of valid high-frequency Tier-2 turn updates "
+                "as Low-Quality / Sensor Spikes, causing the mitigated model to lag along the pre-turn anchor tangent "
+                "until Watch Officer manual waypoint verification."
+            ),
+            "governance_checkpoint": (
+                "Exempt AIS Ship Types 31, 32, 52 (Tug/Pilot Escort) from cargo turn-rate rejection caps (>45 deg/min) "
+                "at speeds <14 kn and route 100% of high-G turns with wide quantile cones to Watch Officer review."
+            ),
+        },
+    }

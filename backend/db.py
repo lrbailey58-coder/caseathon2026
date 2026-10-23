@@ -8,12 +8,17 @@ from typing import Literal
 import duckdb
 
 ConditionType = Literal["NOMINAL", "STALE", "LOW_QUALITY", "COMBINED"]
+VesselPresetType = Literal["CARGO_CONTAINER", "HARBOR_TUG_RARE_MANEUVER"]
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = REPO_ROOT / "data"
 DB_PATH = DATA_DIR / "maritime_case.duckdb"
 
 CONDITIONS: list[ConditionType] = ["NOMINAL", "STALE", "LOW_QUALITY", "COMBINED"]
+VESSEL_PRESETS: list[VesselPresetType] = [
+    "CARGO_CONTAINER",
+    "HARBOR_TUG_RARE_MANEUVER",
+]
 
 CONDITION_LABELS: dict[ConditionType, str] = {
     "NOMINAL": "Reference / Nominal",
@@ -45,6 +50,39 @@ BASE_GROUND_TRUTH_TRACK: list[tuple[float, float]] = [
     (37.0045, -76.2350),
     (36.9985, -76.2610),
     (36.9890, -76.2860),
+]
+
+# Requirement 7 Boundary / Rare-Event Ground-Truth Track:
+# MMSI 367004890 - TUG CAPE HENRY executing a rapid legitimate emergency escort turn (COG delta > 45 deg/min)
+TUG_RARE_MANEUVER_GROUND_TRUTH_TRACK: list[tuple[float, float]] = [
+    (36.9520, -75.9850),
+    (36.9610, -76.0120),
+    (36.9705, -76.0410),
+    (36.9788, -76.0680),
+    (36.9852, -76.0910),
+    (36.9775, -76.1060),  # High-G escort pivot begins (COG delta = 64.2 deg/min)
+    (36.9665, -76.1180),
+    (36.9540, -76.1275),
+    (36.9420, -76.1355),
+    (36.9310, -76.1420),
+    (36.9210, -76.1475),
+    (36.9120, -76.1520),
+]
+
+# Tangent continuation track where the Anchor Trust Gate falsely rejects Tier-2 turn updates
+TUG_ANCHOR_LAG_TANGENT_TRACK: list[tuple[float, float]] = [
+    (36.9520, -75.9850),
+    (36.9610, -76.0120),
+    (36.9705, -76.0410),
+    (36.9788, -76.0680),
+    (36.9858, -76.0935),
+    (36.9922, -76.1190),  # Continues WNW along stale Tier-1 linear extrapolation
+    (36.9980, -76.1445),
+    (37.0028, -76.1695),
+    (37.0055, -76.1940),
+    (37.0040, -76.2180),
+    (36.9990, -76.2410),
+    (36.9920, -76.2630),
 ]
 
 # Deterministic progression tables across rolling windows W1 -> W6
@@ -93,7 +131,10 @@ ERROR_PROGRESSION: dict[ConditionType, dict[str, list[float]]] = {
 
 
 def build_tracks(
-    condition: ConditionType, window_id: int, mitigated: bool
+    condition: ConditionType,
+    window_id: int,
+    mitigated: bool,
+    vessel_type: VesselPresetType = "CARGO_CONTAINER",
 ) -> tuple[
     list[tuple[float, float]],
     list[tuple[float, float]],
@@ -104,10 +145,71 @@ def build_tracks(
     w_idx = window_id - 1  # 0..5
     drift_scale = 0.0 if condition == "NOMINAL" else (w_idx / 5.0)
 
-    unmitigated_track: list[tuple[float, float]] = []
-    mitigated_track: list[tuple[float, float]] = []
-    upper_bound: list[tuple[float, float]] = []
-    lower_bound: list[tuple[float, float]] = []
+    if vessel_type == "HARBOR_TUG_RARE_MANEUVER":
+        # Requirement 7 Boundary / Failure Case:
+        # TUG CAPE HENRY executes a legitimate high-G emergency escort turn (COG delta = 64.2 deg/min).
+        # The kinematic + Tier-1 Anchor Trust Gate falsely flags the valid rapid turn as a "Low-Quality / Sensor Spike"
+        # and discards the high-frequency Tier-2 turn updates, causing the mitigated model to lag along the old
+        # Tier-1 anchor heading until the Watch Officer intervenes.
+        unmitigated_track: list[tuple[float, float]] = []
+        mitigated_track: list[tuple[float, float]] = []
+        upper_bound: list[tuple[float, float]] = []
+        lower_bound: list[tuple[float, float]] = []
+
+        for i, (gt_lat, gt_lon) in enumerate(TUG_RARE_MANEUVER_GROUND_TRUTH_TRACK):
+            progress = max(0.0, (i - 2) / (len(TUG_RARE_MANEUVER_GROUND_TRUTH_TRACK) - 3))
+            if i <= 2:
+                unmitigated_track.append((gt_lat, gt_lon))
+                mitigated_track.append((gt_lat, gt_lon))
+                continue
+
+            # Unmitigated model ingests the raw high-frequency Tier-2 turn pings (plus any condition drift)
+            if condition == "NOMINAL":
+                d_lat = -0.0008 * progress
+                d_lon = 0.0006 * progress
+            elif condition == "STALE":
+                d_lat = 0.0095 * drift_scale * (progress**1.2)
+                d_lon = 0.0080 * drift_scale * progress
+            elif condition == "LOW_QUALITY":
+                osc = 0.0028 if i % 2 == 0 else -0.0022
+                d_lat = osc * max(0.35, drift_scale)
+                d_lon = 0.0055 * drift_scale * progress
+            else:  # COMBINED
+                osc = 0.0032 if i % 2 == 0 else -0.0024
+                d_lat = (0.0110 * drift_scale * progress) + osc * max(0.4, drift_scale)
+                d_lon = 0.0095 * drift_scale * progress
+
+            unmit_lat = round(gt_lat + d_lat, 6)
+            unmit_lon = round(gt_lon + d_lon, 6)
+            unmitigated_track.append((unmit_lat, unmit_lon))
+
+            # Mitigated model suffers from false-positive Trust Gate rejection of the sharp turn:
+            # it discards the valid high-frequency Tier-2 turn updates and lags along the pre-turn Tier-1 Anchor tangent
+            lag_lat, lag_lon = TUG_ANCHOR_LAG_TANGENT_TRACK[i]
+            mit_lat = round(lag_lat - 0.0012 * progress, 6)
+            mit_lon = round(lag_lon + 0.0008 * progress, 6)
+            mitigated_track.append((mit_lat, mit_lon))
+
+            center_lat = mit_lat if mitigated else unmit_lat
+            center_lon = mit_lon if mitigated else unmit_lon
+            cone_half_width = (0.0024 + 0.0028 * max(0.4, drift_scale)) * (0.5 + 0.9 * progress)
+
+            upper_bound.append((round(center_lat + cone_half_width, 6), round(center_lon, 6)))
+            lower_bound.append((round(center_lat - cone_half_width, 6), round(center_lon, 6)))
+
+        anchor_start = TUG_RARE_MANEUVER_GROUND_TRUTH_TRACK[2]
+        uncertainty_polygon = [anchor_start] + upper_bound + list(reversed(lower_bound))
+        return (
+            TUG_RARE_MANEUVER_GROUND_TRUTH_TRACK,
+            unmitigated_track,
+            mitigated_track,
+            uncertainty_polygon,
+        )
+
+    unmitigated_track = []
+    mitigated_track = []
+    upper_bound = []
+    lower_bound = []
 
     for i, (lat, lon) in enumerate(BASE_GROUND_TRUTH_TRACK):
         progress = max(0.0, (i - 2) / (len(BASE_GROUND_TRUTH_TRACK) - 3))
@@ -160,8 +262,17 @@ def build_explanation(
     staleness_min: float,
     corrupted_pct: float,
     divergence_m: float,
+    vessel_type: VesselPresetType = "CARGO_CONTAINER",
 ) -> str:
     window_tag = "W6 (Unseen Test Period)" if window_id == 6 else f"W{window_id}"
+    if vessel_type == "HARBOR_TUG_RARE_MANEUVER":
+        return (
+            f"[{window_tag} // FAILURE MODE] TUG CAPE HENRY (MMSI 367004890) executes a legitimate high-G "
+            "emergency escort turn in Norfolk channel (COG delta = 64.2°/min > 45°/min gate threshold). "
+            f"Kinematic + Tier-1 Anchor Trust Gate falsely flags 82% of valid high-frequency Tier-2 turn pings as "
+            f"'Low-Quality / Sensor Spike', causing the mitigated trajectory to lag {divergence_m:.0f}m along the "
+            "pre-turn anchor vector until Watch Officer manual waypoint verification."
+        )
     if condition == "NOMINAL":
         return (
             f"[{window_tag}] Tier-2 commercial stream aligns within 45m of delayed Tier-1 USCG coastal anchor. "
@@ -317,7 +428,7 @@ def init_and_seed_db() -> None:
                     for window_id in range(1, 7):
                         w_idx = window_id - 1
                         gt_track, unmit_track, mit_track, cone_poly = build_tracks(
-                            condition, window_id, mitigated
+                            condition, window_id, mitigated, "CARGO_CONTAINER"
                         )
                         staleness_min = table["staleness_min"][w_idx]
                         corrupted_pct = table["corrupted_vol_pct"][w_idx]
@@ -361,6 +472,65 @@ def init_and_seed_db() -> None:
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 traj_rows,
+            )
+
+        # Ensure Requirement 7 Rare-Event Tugboat preset rows exist in vessel_trajectories
+        tug_count_row = conn.execute(
+            "SELECT COUNT(*) FROM vessel_trajectories WHERE vessel_type = 'HARBOR_TUG_RARE_MANEUVER'"
+        ).fetchone()
+        tug_count = int(tug_count_row[0]) if tug_count_row else 0
+        if tug_count == 0:
+            tug_rows: list[tuple[object, ...]] = []
+            for condition in CONDITIONS:
+                for mitigated in (False, True):
+                    for window_id in range(1, 7):
+                        w_idx = window_id - 1
+                        gt_track, unmit_track, mit_track, cone_poly = build_tracks(
+                            condition, window_id, mitigated, "HARBOR_TUG_RARE_MANEUVER"
+                        )
+                        # High-G turn (COG delta = 64.2 deg/min) causes 385m..445m divergence from Tier-1 linear anchor
+                        divergence_m = round(385.0 + 12.0 * w_idx, 1)
+                        # Fresh Tier-2 feed (0.6 min age), yet Trust Gate scores it low (0.29) due to false-positive spike flag
+                        staleness_min = 0.6
+                        trust_score = 0.29
+
+                        tug_rows.append(
+                            (
+                                condition,
+                                mitigated,
+                                window_id,
+                                "367004890",
+                                "TUG CAPE HENRY",
+                                "HARBOR_TUG_RARE_MANEUVER",
+                                json.dumps(gt_track),
+                                json.dumps(unmit_track),
+                                json.dumps(mit_track),
+                                json.dumps(cone_poly),
+                                divergence_m,
+                                staleness_min,
+                                trust_score,
+                            )
+                        )
+
+            conn.executemany(
+                """
+                INSERT INTO vessel_trajectories (
+                    condition,
+                    mitigated,
+                    window_id,
+                    mmsi,
+                    vessel_name,
+                    vessel_type,
+                    ground_truth_json,
+                    unmitigated_pred_json,
+                    mitigated_pred_json,
+                    uncertainty_poly_json,
+                    tier1_divergence_m,
+                    staleness_min,
+                    trust_score
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                tug_rows,
             )
 
         # Seed baseline Watch Officer audit log entry if empty so avg review effort is immediately populated
