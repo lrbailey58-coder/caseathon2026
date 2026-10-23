@@ -16,11 +16,10 @@ import json
 import sys
 from datetime import datetime, timezone
 
-from backend.ml.data import CONDITIONS, DB_PATH, REPO_ROOT, connect
+from backend.ml.data import CONDITIONS, DB_PATH, MAX_PLAUSIBLE_SOG_KN, REPO_ROOT, connect
 
 # Chesapeake / Norfolk box used by Person 1's ingestion (backend/database/build_database.py)
 LAT_RANGE, LON_RANGE = (36.8, 37.3), (-76.6, -75.8)
-MAX_PLAUSIBLE_SOG_KN = 40.0  # cargo/tanker/tug never go faster; AIS "not available" is 102.3
 EXPECTED_COLUMNS = {
     "mmsi", "voyage_id", "timestamp", "lat", "lon", "sog", "cog", "vessel_type",
     "window_id", "source_tier", "condition", "is_injected_defect",
@@ -67,9 +66,16 @@ def run_checks() -> Report:
         r.check("positions inside the Norfolk box",
                 LAT_RANGE[0] <= v[0] and v[1] <= LAT_RANGE[1] and LON_RANGE[0] <= v[2] and v[3] <= LON_RANGE[1],
                 {"lat": [v[0], v[1]], "lon": [v[2], v[3]]})
-        r.check("speed and heading in valid ranges",
-                v[4] >= 0 and v[5] <= MAX_PLAUSIBLE_SOG_KN and v[6] >= 0 and v[7] < 360,
-                {"sog_kn": [v[4], v[5]], "cog_deg": [v[6], v[7]]})
+        too_fast = one(f"SELECT COUNT(*) FROM raw_reference_ais WHERE sog > {MAX_PLAUSIBLE_SOG_KN}")
+        ok_ranges = v[4] >= 0 and v[6] >= 0 and v[7] < 360
+        detail = {"sog_kn": [v[4], v[5]], "cog_deg": [v[6], v[7]],
+                  f"pings_over_{MAX_PLAUSIBLE_SOG_KN:.0f}_kn (loader drops them)": too_fast}
+        if ok_ranges and too_fast == 0:
+            r.add("speed and heading in valid ranges", "PASS", detail)
+        elif ok_ranges and too_fast <= 0.0001 * raw_rows:  # a few source glitches: log and drop
+            r.add("speed and heading in valid ranges (a few source glitches)", "WARN", detail)
+        else:
+            r.add("speed and heading in valid ranges", "FAIL", detail)
         r.check("no AIS 'not available' codes (sog 102.3, cog 360, lat 91, lon 181)", v[8] == 0, int(v[8]))
 
         missing = con.execute("""

@@ -1,5 +1,5 @@
 {
-  "total_rows": 190149,
+  "total_rows": 671747,
   "settings": {
     "random_seed": 42,
     "tier_rule": "every 5th ping of each voyage -> TIER1_ANCHOR; rest -> TIER2_FAST",
@@ -29,149 +29,149 @@
       "noise_injected": 0,
       "by_window": {
         "1": {
-          "tier2_rows": 25167,
+          "tier2_rows": 88836,
           "stale_injected": 0,
           "noise_injected": 0
         },
         "2": {
-          "tier2_rows": 25126,
+          "tier2_rows": 88908,
           "stale_injected": 0,
           "noise_injected": 0
         },
         "3": {
-          "tier2_rows": 25146,
+          "tier2_rows": 88873,
           "stale_injected": 0,
           "noise_injected": 0
         },
         "4": {
-          "tier2_rows": 25128,
+          "tier2_rows": 88930,
           "stale_injected": 0,
           "noise_injected": 0
         },
         "5": {
-          "tier2_rows": 25125,
+          "tier2_rows": 88793,
           "stale_injected": 0,
           "noise_injected": 0
         },
         "6": {
-          "tier2_rows": 25181,
+          "tier2_rows": 88832,
           "stale_injected": 0,
           "noise_injected": 0
         }
       }
     },
     "STALE": {
-      "stale_injected": 51811,
+      "stale_injected": 184213,
       "noise_injected": 0,
       "by_window": {
         "1": {
-          "tier2_rows": 25167,
+          "tier2_rows": 88836,
           "stale_injected": 0,
           "noise_injected": 0
         },
         "2": {
-          "tier2_rows": 25126,
-          "stale_injected": 3266,
+          "tier2_rows": 88908,
+          "stale_injected": 11841,
           "noise_injected": 0
         },
         "3": {
-          "tier2_rows": 25146,
-          "stale_injected": 6750,
+          "tier2_rows": 88873,
+          "stale_injected": 23540,
           "noise_injected": 0
         },
         "4": {
-          "tier2_rows": 25128,
-          "stale_injected": 10856,
+          "tier2_rows": 88930,
+          "stale_injected": 39777,
           "noise_injected": 0
         },
         "5": {
-          "tier2_rows": 25125,
-          "stale_injected": 15343,
+          "tier2_rows": 88793,
+          "stale_injected": 54299,
           "noise_injected": 0
         },
         "6": {
-          "tier2_rows": 25181,
-          "stale_injected": 15596,
+          "tier2_rows": 88832,
+          "stale_injected": 54756,
           "noise_injected": 0
         }
       }
     },
     "LOW_QUALITY": {
       "stale_injected": 0,
-      "noise_injected": 125706,
+      "noise_injected": 444336,
       "by_window": {
         "1": {
-          "tier2_rows": 25167,
+          "tier2_rows": 88836,
           "stale_injected": 0,
           "noise_injected": 0
         },
         "2": {
-          "tier2_rows": 25126,
+          "tier2_rows": 88908,
           "stale_injected": 0,
-          "noise_injected": 25126
+          "noise_injected": 88908
         },
         "3": {
-          "tier2_rows": 25146,
+          "tier2_rows": 88873,
           "stale_injected": 0,
-          "noise_injected": 25146
+          "noise_injected": 88873
         },
         "4": {
-          "tier2_rows": 25128,
+          "tier2_rows": 88930,
           "stale_injected": 0,
-          "noise_injected": 25128
+          "noise_injected": 88930
         },
         "5": {
-          "tier2_rows": 25125,
+          "tier2_rows": 88793,
           "stale_injected": 0,
-          "noise_injected": 25125
+          "noise_injected": 88793
         },
         "6": {
-          "tier2_rows": 25181,
+          "tier2_rows": 88832,
           "stale_injected": 0,
-          "noise_injected": 25181
+          "noise_injected": 88832
         }
       }
     },
     "COMBINED": {
-      "stale_injected": 51857,
-      "noise_injected": 125706,
+      "stale_injected": 184280,
+      "noise_injected": 444336,
       "by_window": {
         "1": {
-          "tier2_rows": 25167,
+          "tier2_rows": 88836,
           "stale_injected": 0,
           "noise_injected": 0
         },
         "2": {
-          "tier2_rows": 25126,
-          "stale_injected": 3271,
-          "noise_injected": 25126
+          "tier2_rows": 88908,
+          "stale_injected": 11788,
+          "noise_injected": 88908
         },
         "3": {
-          "tier2_rows": 25146,
-          "stale_injected": 6745,
-          "noise_injected": 25146
+          "tier2_rows": 88873,
+          "stale_injected": 23531,
+          "noise_injected": 88873
         },
         "4": {
-          "tier2_rows": 25128,
-          "stale_injected": 10856,
-          "noise_injected": 25128
+          "tier2_rows": 88930,
+          "stale_injected": 39862,
+          "noise_injected": 88930
         },
         "5": {
-          "tier2_rows": 25125,
-          "stale_injected": 15366,
-          "noise_injected": 25125
+          "tier2_rows": 88793,
+          "stale_injected": 54322,
+          "noise_injected": 88793
         },
         "6": {
-          "tier2_rows": 25181,
-          "stale_injected": 15619,
-          "noise_injected": 25181
+          "tier2_rows": 88832,
+          "stale_injected": 54777,
+          "noise_injected": 88832
         }
       }
     }
   },
   "observed_source_issues": {
-    "duplicate_timestamps_within_voyage": 202,
-    "rows_with_missing_cog": 33,
+    "duplicate_timestamps_within_voyage": 1032,
+    "rows_with_missing_cog": 120,
     "voyages_spanning_two_windows": 5
   }
 }

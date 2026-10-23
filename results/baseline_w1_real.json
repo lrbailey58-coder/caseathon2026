@@ -6,10 +6,10 @@
   "seed": 42,
   "horizon_minutes": 15.0,
   "split_rule": "whole voyages; latest-starting 20% are test; train rows need t+15 before test start",
-  "n_train_voyages": 259,
-  "n_test_voyages": 66,
-  "n_train_rows": 16541,
-  "n_test_rows": 5192,
+  "n_train_voyages": 967,
+  "n_test_voyages": 243,
+  "n_train_rows": 69330,
+  "n_test_rows": 18530,
   "features": [
     "lat",
     "lon",
@@ -36,51 +36,62 @@
     "verbose": -1
   },
   "lightgbm": {
-    "displacement_mae_m": 618.5481937469492,
-    "tail_95_error_m": 2188.8055004331363,
-    "n_predictions": 5192,
+    "displacement_mae_m": 604.4418463314845,
+    "tail_95_error_m": 2109.1143583551448,
+    "n_predictions": 18530,
     "by_vessel_group": {
       "cargo": {
-        "displacement_mae_m": 455.9078606927562,
-        "tail_95_error_m": 1444.5709002094902,
-        "n_predictions": 1375
+        "displacement_mae_m": 539.1303921848264,
+        "tail_95_error_m": 1605.2262000623607,
+        "n_predictions": 5029
+      },
+      "tanker": {
+        "displacement_mae_m": 976.1249321725113,
+        "tail_95_error_m": 1600.2169372644487,
+        "n_predictions": 6
       },
       "tug": {
-        "displacement_mae_m": 677.1362099768459,
-        "tail_95_error_m": 2356.7776128715705,
-        "n_predictions": 3817
+        "displacement_mae_m": 628.6153331331517,
+        "tail_95_error_m": 2302.643813524649,
+        "n_predictions": 13495
       }
     }
   },
   "dead_reckoning": {
-    "displacement_mae_m": 854.5061007701661,
-    "tail_95_error_m": 2838.0202477743774,
-    "n_predictions": 5192,
+    "displacement_mae_m": 919.7348679960277,
+    "tail_95_error_m": 2912.492517358554,
+    "n_predictions": 18530,
     "by_vessel_group": {
       "cargo": {
-        "displacement_mae_m": 843.4656451625506,
-        "tail_95_error_m": 2516.9475154090364,
-        "n_predictions": 1375
+        "displacement_mae_m": 1024.3860502548034,
+        "tail_95_error_m": 2902.0204591031334,
+        "n_predictions": 5029
+      },
+      "tanker": {
+        "displacement_mae_m": 1311.0594597884217,
+        "tail_95_error_m": 1985.707289320977,
+        "n_predictions": 6
       },
       "tug": {
-        "displacement_mae_m": 858.4832101389036,
-        "tail_95_error_m": 2959.760929498349,
-        "n_predictions": 3817
+        "displacement_mae_m": 880.5619340849391,
+        "tail_95_error_m": 2914.8008577680157,
+        "n_predictions": 13495
       }
     }
   },
-  "predict_total_ms": 56.43,
-  "predict_ms_per_row": 0.01087,
+  "predict_total_ms": 113.92,
+  "predict_ms_per_row": 0.00615,
   "data_notes": {
     "source": "real (maritime_case.duckdb, table injected_streams)",
     "condition": "NOMINAL",
     "windows": [
       1
     ],
-    "rows_dropped_missing_values": 4,
-    "rows_dropped_duplicate_timestamps": 34,
+    "rows_dropped_missing_values": 25,
+    "rows_dropped_duplicate_timestamps": 316,
+    "rows_dropped_impossible_source_speed": "original speed > 40 kn (see check_data)",
     "window_rule": "voyage assigned to the window of its first ping"
   },
-  "created_utc": "2026-10-22T22:05:50Z",
-  "saved_model": "models/baseline_w1_real.joblib"
+  "created_utc": "2026-10-23T18:52:47Z",
+  "saved_model": "models\\baseline_w1_real.joblib"
 }

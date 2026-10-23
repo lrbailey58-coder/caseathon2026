@@ -10,6 +10,10 @@ Cleanup applied to real data (logged in the returned `.attrs["notes"]`):
   * A voyage belongs to the window of its FIRST ping. (A few voyages in the
     database have pings in two windows; this keeps each voyage whole.)
   * Rows missing lat, lon, sog or cog are dropped (the physics guess needs them).
+  * Pings whose ORIGINAL (clean) speed is impossible (> 40 kn for tugs, cargo
+    ships and tankers) are dropped in every condition. These are source glitches,
+    e.g. a tug reporting 46.9 kn while moving 2.4 kn. Using the clean value means
+    corruption we injected on purpose is never filtered here (that is the gate's job).
   * Pings that share the exact same timestamp in the same voyage are dropped
     (both copies). The database has no rule for which copy is "first", so
     keeping one would make results change from run to run.
@@ -28,6 +32,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 DB_PATH = REPO_ROOT / "backend" / "maritime_case.duckdb"  # Person 1's database
 
 CONDITIONS = ["NOMINAL", "STALE", "LOW_QUALITY", "COMBINED"]
+MAX_PLAUSIBLE_SOG_KN = 40.0  # cargo/tanker/tug never go faster; higher = source glitch
 SOURCES = ["dummy", "real"]
 MODEL_COLUMNS = [
     "mmsi", "voyage_id", "timestamp", "lat", "lon", "sog", "cog",
@@ -48,7 +53,11 @@ def connect(db_path: Path = DB_PATH) -> duckdb.DuckDBPyConnection:
 # One SQL query does the window fix and the filtering inside DuckDB (fast, no big copies).
 _REAL_QUERY = """
 WITH stream AS (
-    SELECT * FROM injected_streams WHERE condition = $condition
+    SELECT * FROM injected_streams i
+    WHERE condition = $condition
+      AND NOT EXISTS (  -- source glitch: the ORIGINAL report has an impossible speed
+          SELECT 1 FROM raw_reference_ais g
+          WHERE g.voyage_id = i.voyage_id AND g.base_datetime = i.timestamp AND g.sog > $max_sog)
 ),
 voyage_window AS (
     -- the window of each voyage's first ping
@@ -87,7 +96,8 @@ def load_pings(
         return df[MODEL_COLUMNS]
 
     with connect(db_path) as con:
-        df = con.execute(_REAL_QUERY, {"condition": condition, "windows": windows}).df()
+        df = con.execute(_REAL_QUERY, {"condition": condition, "windows": windows,
+                                       "max_sog": MAX_PLAUSIBLE_SOG_KN}).df()
 
     df = _clean_real(df)
     df.attrs["notes"] = {
@@ -96,6 +106,7 @@ def load_pings(
         "windows": windows,
         "rows_dropped_missing_values": df.attrs["dropped_missing"],
         "rows_dropped_duplicate_timestamps": df.attrs["dropped_duplicates"],
+        "rows_dropped_impossible_source_speed": f"original speed > {MAX_PLAUSIBLE_SOG_KN:.0f} kn (see check_data)",
         "window_rule": "voyage assigned to the window of its first ping",
     }
     return df[MODEL_COLUMNS]
@@ -130,7 +141,8 @@ def load_audit_labels(condition: str, windows: list[int] | None = None, db_path:
         "JOIN raw_reference_ais r ON r.voyage_id = s.voyage_id AND r.base_datetime = s.timestamp",
     )
     with connect(db_path) as con:
-        df = con.execute(query, {"condition": condition, "windows": windows}).df()
+        df = con.execute(query, {"condition": condition, "windows": windows,
+                                 "max_sog": MAX_PLAUSIBLE_SOG_KN}).df()
     df = _clean_real(df)
     return df[["voyage_id", "timestamp", "is_injected_defect", "clean_lat", "clean_lon", "clean_sog", "clean_cog"]]
 

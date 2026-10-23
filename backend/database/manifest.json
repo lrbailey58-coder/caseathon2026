@@ -1,10 +1,10 @@
 {
   "dataset_name": "MarineCadastre AIS 2025 (Chesapeake Bay & Norfolk Corridor)",
   "source_url": "https://noaaocm.blob.core.windows.net/ais/csv2/csv2025",
-  "retrieval_date": "2026-10-22",
+  "retrieval_date": "2026-10-23",
   "date_range_utc": [
     "2025-09-01 00:00:00",
-    "2025-09-12 23:59:59"
+    "2025-10-12 23:59:54"
   ],
   "spatial_bounding_box": {
     "lat_min": 36.8,
@@ -21,68 +21,70 @@
   "voyage_rule": "new voyage when the same MMSI has a gap > 30 min between pings",
   "window_rule": "NTILE(6) over pings ordered by voyage start time (equal ping counts per window)",
   "chronological_windows": 6,
-  "total_reference_pings": 190149,
-  "unique_voyages": 2841,
-  "unique_vessels": 291,
+  "total_reference_pings": 671747,
+  "unique_voyages": 9680,
+  "unique_vessels": 630,
   "windows": [
     {
       "window_id": 1,
-      "voyages": 423,
-      "pings": 31692,
+      "voyages": 1639,
+      "pings": 111958,
       "first_ping_utc": "2025-09-01 00:00:00",
-      "last_ping_utc": "2025-09-04 21:55:47"
+      "last_ping_utc": "2025-09-08 04:49:01"
     },
     {
       "window_id": 2,
-      "voyages": 523,
-      "pings": 31692,
-      "first_ping_utc": "2025-09-03 01:56:51",
-      "last_ping_utc": "2025-09-05 21:56:48"
+      "voyages": 1536,
+      "pings": 111958,
+      "first_ping_utc": "2025-09-07 22:05:32",
+      "last_ping_utc": "2025-09-15 14:29:39"
     },
     {
       "window_id": 3,
-      "voyages": 432,
-      "pings": 31692,
-      "first_ping_utc": "2025-09-04 23:26:23",
-      "last_ping_utc": "2025-09-07 12:35:09"
+      "voyages": 1584,
+      "pings": 111958,
+      "first_ping_utc": "2025-09-15 01:43:51",
+      "last_ping_utc": "2025-09-22 10:56:43"
     },
     {
       "window_id": 4,
-      "voyages": 528,
-      "pings": 31691,
-      "first_ping_utc": "2025-09-06 17:49:25",
-      "last_ping_utc": "2025-09-09 06:35:36"
+      "voyages": 1451,
+      "pings": 111958,
+      "first_ping_utc": "2025-09-21 12:04:44",
+      "last_ping_utc": "2025-09-27 19:16:22"
     },
     {
       "window_id": 5,
-      "voyages": 503,
-      "pings": 31691,
-      "first_ping_utc": "2025-09-09 02:44:11",
-      "last_ping_utc": "2025-09-11 12:27:17"
+      "voyages": 1767,
+      "pings": 111958,
+      "first_ping_utc": "2025-09-27 03:27:42",
+      "last_ping_utc": "2025-10-05 17:29:41"
     },
     {
       "window_id": 6,
-      "voyages": 437,
-      "pings": 31691,
-      "first_ping_utc": "2025-09-11 06:37:21",
-      "last_ping_utc": "2025-09-12 23:59:59"
+      "voyages": 1708,
+      "pings": 111957,
+      "first_ping_utc": "2025-10-05 05:58:32",
+      "last_ping_utc": "2025-10-12 23:59:54"
     }
   ],
   "voyages_by_vessel_type_code": {
-    "52": 1328,
-    "31": 891,
-    "70": 303,
-    "32": 116,
-    "71": 61,
-    "74": 58,
-    "79": 28,
-    "80": 27,
-    "72": 11,
-    "73": 8,
-    "77": 4,
+    "52": 4815,
+    "31": 2678,
+    "70": 1234,
+    "32": 339,
+    "71": 228,
+    "74": 121,
+    "79": 110,
+    "80": 73,
+    "72": 49,
+    "73": 12,
+    "82": 6,
+    "77": 6,
     "86": 3,
-    "89": 2,
-    "82": 1
+    "89": 3,
+    "78": 2,
+    "85": 1
   },
   "missing_value_treatment": "pings with SOG <= 0.5 kn removed; rows with missing COG kept as-is",
   "injected_streams": "see modification_log.json (simulated degradations, not real feed failures)",
