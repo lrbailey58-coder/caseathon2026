@@ -8,8 +8,8 @@
   "split_rule": "whole voyages; latest-starting 20% are test; train rows need t+15 before test start",
   "n_train_voyages": 259,
   "n_test_voyages": 66,
-  "n_train_rows": 16553,
-  "n_test_rows": 5194,
+  "n_train_rows": 16541,
+  "n_test_rows": 5192,
   "features": [
     "lat",
     "lon",
@@ -36,41 +36,41 @@
     "verbose": -1
   },
   "lightgbm": {
-    "displacement_mae_m": 615.9307543282091,
-    "tail_95_error_m": 2188.540921941534,
-    "n_predictions": 5194,
+    "displacement_mae_m": 618.5481937469492,
+    "tail_95_error_m": 2188.8055004331363,
+    "n_predictions": 5192,
     "by_vessel_group": {
       "cargo": {
-        "displacement_mae_m": 458.33942258040264,
-        "tail_95_error_m": 1484.6844023718554,
-        "n_predictions": 1376
+        "displacement_mae_m": 455.9078606927562,
+        "tail_95_error_m": 1444.5709002094902,
+        "n_predictions": 1375
       },
       "tug": {
-        "displacement_mae_m": 672.7263731037415,
-        "tail_95_error_m": 2357.0770691277235,
-        "n_predictions": 3818
+        "displacement_mae_m": 677.1362099768459,
+        "tail_95_error_m": 2356.7776128715705,
+        "n_predictions": 3817
       }
     }
   },
   "dead_reckoning": {
-    "displacement_mae_m": 854.3081954919156,
-    "tail_95_error_m": 2837.382498190197,
-    "n_predictions": 5194,
+    "displacement_mae_m": 854.5061007701661,
+    "tail_95_error_m": 2838.0202477743774,
+    "n_predictions": 5192,
     "by_vessel_group": {
       "cargo": {
-        "displacement_mae_m": 843.3010477935337,
-        "tail_95_error_m": 2516.856538781155,
-        "n_predictions": 1376
+        "displacement_mae_m": 843.4656451625506,
+        "tail_95_error_m": 2516.9475154090364,
+        "n_predictions": 1375
       },
       "tug": {
-        "displacement_mae_m": 858.2751507650885,
-        "tail_95_error_m": 2959.569999483182,
-        "n_predictions": 3818
+        "displacement_mae_m": 858.4832101389036,
+        "tail_95_error_m": 2959.760929498349,
+        "n_predictions": 3817
       }
     }
   },
-  "predict_total_ms": 23.02,
-  "predict_ms_per_row": 0.00443,
+  "predict_total_ms": 56.43,
+  "predict_ms_per_row": 0.01087,
   "data_notes": {
     "source": "real (maritime_case.duckdb, table injected_streams)",
     "condition": "NOMINAL",
@@ -78,8 +78,9 @@
       1
     ],
     "rows_dropped_missing_values": 4,
+    "rows_dropped_duplicate_timestamps": 34,
     "window_rule": "voyage assigned to the window of its first ping"
   },
-  "created_utc": "2026-10-22T21:35:38Z",
-  "saved_model": "models\\baseline_w1_real.joblib"
+  "created_utc": "2026-10-22T22:05:50Z",
+  "saved_model": "models/baseline_w1_real.joblib"
 }

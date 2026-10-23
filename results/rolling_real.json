@@ -1,0 +1,1856 @@
+{
+  "run": "rolling_retrain_gate_off_vs_on",
+  "data_source": "real",
+  "seed": 42,
+  "conditions": [
+    "NOMINAL",
+    "STALE",
+    "LOW_QUALITY",
+    "COMBINED"
+  ],
+  "design": {
+    "steps": "retrain on what arrived in W1..Wk -> test W(k+1), for k = 1..5",
+    "buffer": "both feeds, earlier windows, timestamp before retraining; anchor feed delayed 45 min",
+    "gate_off": "train on the whole buffer (naive retraining)",
+    "gate_on": "trust gate drops suspect fast-feed pings first; limits learned from W1 only; predictions with a 90% range radius > 1852 m are deferred to a human",
+    "error_metric_scope": "all test predictions, deferred ones included",
+    "test_data": "clean NOMINAL inputs and true positions, identical for all runs",
+    "poisoning_stage": "training-time (retraining buffer); test-time inputs are clean",
+    "no_future_rule": "train rows need their 15-min answer before retraining",
+    "window_rule": "voyage belongs to the window of its first ping"
+  },
+  "lgbm_params": {
+    "n_estimators": 300,
+    "learning_rate": 0.05,
+    "num_leaves": 31,
+    "min_child_samples": 20,
+    "objective": "l1",
+    "random_state": 42,
+    "deterministic": true,
+    "force_row_wise": true,
+    "verbose": -1
+  },
+  "rows": [
+    {
+      "condition": "NOMINAL",
+      "mitigated": false,
+      "train_windows": "W1-W1",
+      "window_id": 2,
+      "buffer_pings": 28310,
+      "n_train_rows": 22711,
+      "n_train_voyages": 328,
+      "n_test_rows": 24374,
+      "displacement_mae_m": 742.5740535038801,
+      "tail_95_error_m": 2398.4701117435075,
+      "by_vessel_group": {
+        "cargo": {
+          "displacement_mae_m": 659.718327390076,
+          "tail_95_error_m": 2108.9528499975754,
+          "n_predictions": 7243
+        },
+        "tanker": {
+          "displacement_mae_m": 644.3589948445116,
+          "tail_95_error_m": 2230.7114418057845,
+          "n_predictions": 484
+        },
+        "tug": {
+          "displacement_mae_m": 781.479568769899,
+          "tail_95_error_m": 2512.744585617183,
+          "n_predictions": 16647
+        }
+      },
+      "physics_mae_m": 1024.1548718918607,
+      "physics_tail_95_m": 3017.499032779692,
+      "data_discarded_pct": 0.0,
+      "newest_window_discarded_pct": 0.0,
+      "decisions_deferred_pct": 0.0,
+      "deferral": null,
+      "train_buffer_corrupted_pct": 0.0,
+      "predict_total_ms": 379.53,
+      "predict_ms_per_row": 0.01557
+    },
+    {
+      "condition": "NOMINAL",
+      "mitigated": true,
+      "train_windows": "W1-W1",
+      "window_id": 2,
+      "buffer_pings": 28310,
+      "n_train_rows": 22156,
+      "n_train_voyages": 326,
+      "n_test_rows": 24374,
+      "displacement_mae_m": 739.6755632136051,
+      "tail_95_error_m": 2395.782992775594,
+      "by_vessel_group": {
+        "cargo": {
+          "displacement_mae_m": 655.8141163181342,
+          "tail_95_error_m": 2072.1661463014734,
+          "n_predictions": 7243
+        },
+        "tanker": {
+          "displacement_mae_m": 643.4700433223256,
+          "tail_95_error_m": 2297.447598097516,
+          "n_predictions": 484
+        },
+        "tug": {
+          "displacement_mae_m": 778.960235015808,
+          "tail_95_error_m": 2507.5413582541523,
+          "n_predictions": 16647
+        }
+      },
+      "physics_mae_m": 1024.1548718918607,
+      "physics_tail_95_m": 3017.499032779692,
+      "data_discarded_pct": 1.89,
+      "newest_window_discarded_pct": 1.89,
+      "decisions_deferred_pct": 14.92,
+      "deferral": {
+        "safety_radius_m": 1852.0,
+        "decisions_deferred_pct": 14.92,
+        "accepted_mae_m": 597.4536328919746,
+        "deferred_mae_m": 1550.5791015912923,
+        "accepted_tail_95_m": 1879.7275392686342,
+        "median_radius_m": 1225.6159090179208,
+        "range_coverage_north_pct": 80.4,
+        "range_coverage_east_pct": 81.5,
+        "worst_10pct_deferred_pct": 49.4,
+        "deferred_pct_by_ship_type": {
+          "cargo": 8.9,
+          "tanker": 10.5,
+          "tug": 17.6
+        }
+      },
+      "train_buffer_corrupted_pct": 0.0,
+      "predict_total_ms": 376.05,
+      "predict_ms_per_row": 0.01543
+    },
+    {
+      "condition": "NOMINAL",
+      "mitigated": false,
+      "train_windows": "W1-W2",
+      "window_id": 3,
+      "buffer_pings": 61853,
+      "n_train_rows": 49198,
+      "n_train_voyages": 710,
+      "n_test_rows": 25988,
+      "displacement_mae_m": 630.3347419730062,
+      "tail_95_error_m": 2205.324189081534,
+      "by_vessel_group": {
+        "cargo": {
+          "displacement_mae_m": 518.821253947634,
+          "tail_95_error_m": 1677.1652763827633,
+          "n_predictions": 6381
+        },
+        "tanker": {
+          "displacement_mae_m": 527.93688994487,
+          "tail_95_error_m": 1982.3004927283866,
+          "n_predictions": 128
+        },
+        "tug": {
+          "displacement_mae_m": 667.5376010596893,
+          "tail_95_error_m": 2330.6368439603248,
+          "n_predictions": 19479
+        }
+      },
+      "physics_mae_m": 903.7177042568867,
+      "physics_tail_95_m": 2843.631191214984,
+      "data_discarded_pct": 0.0,
+      "newest_window_discarded_pct": 0.0,
+      "decisions_deferred_pct": 0.0,
+      "deferral": null,
+      "train_buffer_corrupted_pct": 0.0,
+      "predict_total_ms": 350.67,
+      "predict_ms_per_row": 0.01349
+    },
+    {
+      "condition": "NOMINAL",
+      "mitigated": true,
+      "train_windows": "W1-W2",
+      "window_id": 3,
+      "buffer_pings": 61853,
+      "n_train_rows": 48002,
+      "n_train_voyages": 704,
+      "n_test_rows": 25988,
+      "displacement_mae_m": 632.7653300416858,
+      "tail_95_error_m": 2208.43631519703,
+      "by_vessel_group": {
+        "cargo": {
+          "displacement_mae_m": 525.1735039439218,
+          "tail_95_error_m": 1675.9475155446942,
+          "n_predictions": 6381
+        },
+        "tanker": {
+          "displacement_mae_m": 512.9131516935739,
+          "tail_95_error_m": 1806.0436709572161,
+          "n_predictions": 128
+        },
+        "tug": {
+          "displacement_mae_m": 668.7982126926632,
+          "tail_95_error_m": 2343.142054904038,
+          "n_predictions": 19479
+        }
+      },
+      "physics_mae_m": 903.7177042568867,
+      "physics_tail_95_m": 2843.631191214984,
+      "data_discarded_pct": 1.86,
+      "newest_window_discarded_pct": 1.95,
+      "decisions_deferred_pct": 11.88,
+      "deferral": {
+        "safety_radius_m": 1852.0,
+        "decisions_deferred_pct": 11.88,
+        "accepted_mae_m": 511.2776696305753,
+        "deferred_mae_m": 1534.0251003931085,
+        "accepted_tail_95_m": 1777.8344789388173,
+        "median_radius_m": 1037.9284578236636,
+        "range_coverage_north_pct": 84.2,
+        "range_coverage_east_pct": 83.7,
+        "worst_10pct_deferred_pct": 45.3,
+        "deferred_pct_by_ship_type": {
+          "cargo": 9.7,
+          "tanker": 10.9,
+          "tug": 12.6
+        }
+      },
+      "train_buffer_corrupted_pct": 0.0,
+      "predict_total_ms": 366.33,
+      "predict_ms_per_row": 0.0141
+    },
+    {
+      "condition": "NOMINAL",
+      "mitigated": false,
+      "train_windows": "W1-W3",
+      "window_id": 4,
+      "buffer_pings": 90849,
+      "n_train_rows": 72623,
+      "n_train_voyages": 1015,
+      "n_test_rows": 25257,
+      "displacement_mae_m": 620.8473723387971,
+      "tail_95_error_m": 2168.86205319448,
+      "by_vessel_group": {
+        "cargo": {
+          "displacement_mae_m": 492.13669628446996,
+          "tail_95_error_m": 1536.4901540352323,
+          "n_predictions": 8997
+        },
+        "tanker": {
+          "displacement_mae_m": 610.70524216051,
+          "tail_95_error_m": 1736.7102616734946,
+          "n_predictions": 328
+        },
+        "tug": {
+          "displacement_mae_m": 693.7407046987806,
+          "tail_95_error_m": 2527.579188561086,
+          "n_predictions": 15932
+        }
+      },
+      "physics_mae_m": 959.6179852141966,
+      "physics_tail_95_m": 2976.784296167526,
+      "data_discarded_pct": 0.0,
+      "newest_window_discarded_pct": 0.0,
+      "decisions_deferred_pct": 0.0,
+      "deferral": null,
+      "train_buffer_corrupted_pct": 0.0,
+      "predict_total_ms": 371.95,
+      "predict_ms_per_row": 0.01473
+    },
+    {
+      "condition": "NOMINAL",
+      "mitigated": true,
+      "train_windows": "W1-W3",
+      "window_id": 4,
+      "buffer_pings": 90849,
+      "n_train_rows": 70839,
+      "n_train_voyages": 1008,
+      "n_test_rows": 25257,
+      "displacement_mae_m": 620.5948875129734,
+      "tail_95_error_m": 2186.002497352263,
+      "by_vessel_group": {
+        "cargo": {
+          "displacement_mae_m": 493.16432426777493,
+          "tail_95_error_m": 1539.2774595757055,
+          "n_predictions": 8997
+        },
+        "tanker": {
+          "displacement_mae_m": 604.7675675956277,
+          "tail_95_error_m": 1752.5705169351413,
+          "n_predictions": 328
+        },
+        "tug": {
+          "displacement_mae_m": 692.882367957986,
+          "tail_95_error_m": 2527.1188101479765,
+          "n_predictions": 15932
+        }
+      },
+      "physics_mae_m": 959.6179852141966,
+      "physics_tail_95_m": 2976.784296167526,
+      "data_discarded_pct": 1.9,
+      "newest_window_discarded_pct": 1.99,
+      "decisions_deferred_pct": 15.8,
+      "deferral": {
+        "safety_radius_m": 1852.0,
+        "decisions_deferred_pct": 15.8,
+        "accepted_mae_m": 469.97565403581535,
+        "deferred_mae_m": 1423.1678314180713,
+        "accepted_tail_95_m": 1549.0455722698412,
+        "median_radius_m": 1138.7857098804889,
+        "range_coverage_north_pct": 86.4,
+        "range_coverage_east_pct": 86.0,
+        "worst_10pct_deferred_pct": 56.3,
+        "deferred_pct_by_ship_type": {
+          "cargo": 8.0,
+          "tanker": 8.2,
+          "tug": 20.4
+        }
+      },
+      "train_buffer_corrupted_pct": 0.0,
+      "predict_total_ms": 367.6,
+      "predict_ms_per_row": 0.01455
+    },
+    {
+      "condition": "NOMINAL",
+      "mitigated": false,
+      "train_windows": "W1-W4",
+      "window_id": 5,
+      "buffer_pings": 125949,
+      "n_train_rows": 100981,
+      "n_train_voyages": 1400,
+      "n_test_rows": 24891,
+      "displacement_mae_m": 694.7402563519561,
+      "tail_95_error_m": 2435.637201235324,
+      "by_vessel_group": {
+        "cargo": {
+          "displacement_mae_m": 476.6602740846599,
+          "tail_95_error_m": 1480.872000135261,
+          "n_predictions": 8767
+        },
+        "tanker": {
+          "displacement_mae_m": 606.873262457907,
+          "tail_95_error_m": 2035.9120248944148,
+          "n_predictions": 485
+        },
+        "tug": {
+          "displacement_mae_m": 819.7177291172223,
+          "tail_95_error_m": 2862.0084731574407,
+          "n_predictions": 15639
+        }
+      },
+      "physics_mae_m": 1072.954611708308,
+      "physics_tail_95_m": 3232.595096680403,
+      "data_discarded_pct": 0.0,
+      "newest_window_discarded_pct": 0.0,
+      "decisions_deferred_pct": 0.0,
+      "deferral": null,
+      "train_buffer_corrupted_pct": 0.0,
+      "predict_total_ms": 393.75,
+      "predict_ms_per_row": 0.01582
+    },
+    {
+      "condition": "NOMINAL",
+      "mitigated": true,
+      "train_windows": "W1-W4",
+      "window_id": 5,
+      "buffer_pings": 125949,
+      "n_train_rows": 98402,
+      "n_train_voyages": 1387,
+      "n_test_rows": 24891,
+      "displacement_mae_m": 699.1778487665212,
+      "tail_95_error_m": 2465.1586456118457,
+      "by_vessel_group": {
+        "cargo": {
+          "displacement_mae_m": 482.09684810462915,
+          "tail_95_error_m": 1514.5726843053608,
+          "n_predictions": 8767
+        },
+        "tanker": {
+          "displacement_mae_m": 612.589492366878,
+          "tail_95_error_m": 2064.304228803085,
+          "n_predictions": 485
+        },
+        "tug": {
+          "displacement_mae_m": 823.5556533356518,
+          "tail_95_error_m": 2895.1986476190805,
+          "n_predictions": 15639
+        }
+      },
+      "physics_mae_m": 1072.954611708308,
+      "physics_tail_95_m": 3232.595096680403,
+      "data_discarded_pct": 1.94,
+      "newest_window_discarded_pct": 2.26,
+      "decisions_deferred_pct": 19.1,
+      "deferral": {
+        "safety_radius_m": 1852.0,
+        "decisions_deferred_pct": 19.1,
+        "accepted_mae_m": 506.0171828438275,
+        "deferred_mae_m": 1517.5808553626084,
+        "accepted_tail_95_m": 1641.7188839933676,
+        "median_radius_m": 1239.664080416449,
+        "range_coverage_north_pct": 85.3,
+        "range_coverage_east_pct": 87.1,
+        "worst_10pct_deferred_pct": 63.7,
+        "deferred_pct_by_ship_type": {
+          "cargo": 8.6,
+          "tanker": 21.6,
+          "tug": 24.9
+        }
+      },
+      "train_buffer_corrupted_pct": 0.0,
+      "predict_total_ms": 384.99,
+      "predict_ms_per_row": 0.01547
+    },
+    {
+      "condition": "NOMINAL",
+      "mitigated": false,
+      "train_windows": "W1-W5",
+      "window_id": 6,
+      "buffer_pings": 156611,
+      "n_train_rows": 125047,
+      "n_train_voyages": 1754,
+      "n_test_rows": 25578,
+      "displacement_mae_m": 667.589346068325,
+      "tail_95_error_m": 2422.942625656105,
+      "by_vessel_group": {
+        "cargo": {
+          "displacement_mae_m": 533.040310859533,
+          "tail_95_error_m": 1783.9156182631707,
+          "n_predictions": 4896
+        },
+        "tanker": {
+          "displacement_mae_m": 685.3154346355652,
+          "tail_95_error_m": 1809.0271768259313,
+          "n_predictions": 185
+        },
+        "tug": {
+          "displacement_mae_m": 699.5683064038525,
+          "tail_95_error_m": 2520.3536607240862,
+          "n_predictions": 20497
+        }
+      },
+      "physics_mae_m": 923.0683238259887,
+      "physics_tail_95_m": 2970.271059042951,
+      "data_discarded_pct": 0.0,
+      "newest_window_discarded_pct": 0.0,
+      "decisions_deferred_pct": 0.0,
+      "deferral": null,
+      "train_buffer_corrupted_pct": 0.0,
+      "predict_total_ms": 350.41,
+      "predict_ms_per_row": 0.0137
+    },
+    {
+      "condition": "NOMINAL",
+      "mitigated": true,
+      "train_windows": "W1-W5",
+      "window_id": 6,
+      "buffer_pings": 156611,
+      "n_train_rows": 122063,
+      "n_train_voyages": 1734,
+      "n_test_rows": 25578,
+      "displacement_mae_m": 668.1165468433215,
+      "tail_95_error_m": 2439.1678241330333,
+      "by_vessel_group": {
+        "cargo": {
+          "displacement_mae_m": 544.4832706494382,
+          "tail_95_error_m": 1823.646110379889,
+          "n_predictions": 4896
+        },
+        "tanker": {
+          "displacement_mae_m": 682.455649255468,
+          "tail_95_error_m": 1837.734485980342,
+          "n_predictions": 185
+        },
+        "tug": {
+          "displacement_mae_m": 697.5186928304907,
+          "tail_95_error_m": 2528.3839165955574,
+          "n_predictions": 20497
+        }
+      },
+      "physics_mae_m": 923.0683238259887,
+      "physics_tail_95_m": 2970.271059042951,
+      "data_discarded_pct": 1.85,
+      "newest_window_discarded_pct": 1.51,
+      "decisions_deferred_pct": 15.63,
+      "deferral": {
+        "safety_radius_m": 1852.0,
+        "decisions_deferred_pct": 15.63,
+        "accepted_mae_m": 515.3171081235097,
+        "deferred_mae_m": 1492.8819014139915,
+        "accepted_tail_95_m": 1836.0787360192376,
+        "median_radius_m": 1170.0052460203492,
+        "range_coverage_north_pct": 86.1,
+        "range_coverage_east_pct": 86.5,
+        "worst_10pct_deferred_pct": 51.4,
+        "deferred_pct_by_ship_type": {
+          "cargo": 9.0,
+          "tanker": 9.7,
+          "tug": 17.3
+        }
+      },
+      "train_buffer_corrupted_pct": 0.0,
+      "predict_total_ms": 331.01,
+      "predict_ms_per_row": 0.01294
+    },
+    {
+      "condition": "STALE",
+      "mitigated": false,
+      "train_windows": "W1-W1",
+      "window_id": 2,
+      "buffer_pings": 28310,
+      "n_train_rows": 22711,
+      "n_train_voyages": 328,
+      "n_test_rows": 24374,
+      "displacement_mae_m": 742.5740535038801,
+      "tail_95_error_m": 2398.4701117435075,
+      "by_vessel_group": {
+        "cargo": {
+          "displacement_mae_m": 659.718327390076,
+          "tail_95_error_m": 2108.9528499975754,
+          "n_predictions": 7243
+        },
+        "tanker": {
+          "displacement_mae_m": 644.3589948445116,
+          "tail_95_error_m": 2230.7114418057845,
+          "n_predictions": 484
+        },
+        "tug": {
+          "displacement_mae_m": 781.479568769899,
+          "tail_95_error_m": 2512.744585617183,
+          "n_predictions": 16647
+        }
+      },
+      "physics_mae_m": 1024.1548718918607,
+      "physics_tail_95_m": 3017.499032779692,
+      "data_discarded_pct": 0.0,
+      "newest_window_discarded_pct": 0.0,
+      "decisions_deferred_pct": 0.0,
+      "deferral": null,
+      "train_buffer_corrupted_pct": 0.01,
+      "predict_total_ms": 401.74,
+      "predict_ms_per_row": 0.01648
+    },
+    {
+      "condition": "STALE",
+      "mitigated": true,
+      "train_windows": "W1-W1",
+      "window_id": 2,
+      "buffer_pings": 28310,
+      "n_train_rows": 22156,
+      "n_train_voyages": 326,
+      "n_test_rows": 24374,
+      "displacement_mae_m": 739.6755632136051,
+      "tail_95_error_m": 2395.782992775594,
+      "by_vessel_group": {
+        "cargo": {
+          "displacement_mae_m": 655.8141163181342,
+          "tail_95_error_m": 2072.1661463014734,
+          "n_predictions": 7243
+        },
+        "tanker": {
+          "displacement_mae_m": 643.4700433223256,
+          "tail_95_error_m": 2297.447598097516,
+          "n_predictions": 484
+        },
+        "tug": {
+          "displacement_mae_m": 778.960235015808,
+          "tail_95_error_m": 2507.5413582541523,
+          "n_predictions": 16647
+        }
+      },
+      "physics_mae_m": 1024.1548718918607,
+      "physics_tail_95_m": 3017.499032779692,
+      "data_discarded_pct": 1.89,
+      "newest_window_discarded_pct": 1.89,
+      "decisions_deferred_pct": 14.92,
+      "deferral": {
+        "safety_radius_m": 1852.0,
+        "decisions_deferred_pct": 14.92,
+        "accepted_mae_m": 597.4536328919746,
+        "deferred_mae_m": 1550.5791015912923,
+        "accepted_tail_95_m": 1879.7275392686342,
+        "median_radius_m": 1225.6159090179208,
+        "range_coverage_north_pct": 80.4,
+        "range_coverage_east_pct": 81.5,
+        "worst_10pct_deferred_pct": 49.4,
+        "deferred_pct_by_ship_type": {
+          "cargo": 8.9,
+          "tanker": 10.5,
+          "tug": 17.6
+        }
+      },
+      "train_buffer_corrupted_pct": 0.01,
+      "predict_total_ms": 371.16,
+      "predict_ms_per_row": 0.01523
+    },
+    {
+      "condition": "STALE",
+      "mitigated": false,
+      "train_windows": "W1-W2",
+      "window_id": 3,
+      "buffer_pings": 61853,
+      "n_train_rows": 49198,
+      "n_train_voyages": 710,
+      "n_test_rows": 25988,
+      "displacement_mae_m": 633.6127730692783,
+      "tail_95_error_m": 2165.054523425791,
+      "by_vessel_group": {
+        "cargo": {
+          "displacement_mae_m": 531.2271058111445,
+          "tail_95_error_m": 1688.719165753654,
+          "n_predictions": 6381
+        },
+        "tanker": {
+          "displacement_mae_m": 542.02209703428,
+          "tail_95_error_m": 2026.6680829407555,
+          "n_predictions": 128
+        },
+        "tug": {
+          "displacement_mae_m": 667.7544923211206,
+          "tail_95_error_m": 2293.4967860924867,
+          "n_predictions": 19479
+        }
+      },
+      "physics_mae_m": 903.7177042568867,
+      "physics_tail_95_m": 2843.631191214984,
+      "data_discarded_pct": 0.0,
+      "newest_window_discarded_pct": 0.0,
+      "decisions_deferred_pct": 0.0,
+      "deferral": null,
+      "train_buffer_corrupted_pct": 5.15,
+      "predict_total_ms": 341.02,
+      "predict_ms_per_row": 0.01312
+    },
+    {
+      "condition": "STALE",
+      "mitigated": true,
+      "train_windows": "W1-W2",
+      "window_id": 3,
+      "buffer_pings": 61853,
+      "n_train_rows": 45368,
+      "n_train_voyages": 703,
+      "n_test_rows": 25988,
+      "displacement_mae_m": 632.8644308301626,
+      "tail_95_error_m": 2197.3526797420736,
+      "by_vessel_group": {
+        "cargo": {
+          "displacement_mae_m": 526.0892789710658,
+          "tail_95_error_m": 1724.8068818897323,
+          "n_predictions": 6381
+        },
+        "tanker": {
+          "displacement_mae_m": 520.8816270156436,
+          "tail_95_error_m": 1854.8485570261132,
+          "n_predictions": 128
+        },
+        "tug": {
+          "displacement_mae_m": 668.5780733632063,
+          "tail_95_error_m": 2331.2323052395695,
+          "n_predictions": 19479
+        }
+      },
+      "physics_mae_m": 903.7177042568867,
+      "physics_tail_95_m": 2843.631191214984,
+      "data_discarded_pct": 6.34,
+      "newest_window_discarded_pct": 11.14,
+      "decisions_deferred_pct": 12.07,
+      "deferral": {
+        "safety_radius_m": 1852.0,
+        "decisions_deferred_pct": 12.07,
+        "accepted_mae_m": 508.2455698077644,
+        "deferred_mae_m": 1540.6315947520059,
+        "accepted_tail_95_m": 1769.804887089792,
+        "median_radius_m": 1035.2029040469406,
+        "range_coverage_north_pct": 84.6,
+        "range_coverage_east_pct": 84.0,
+        "worst_10pct_deferred_pct": 45.7,
+        "deferred_pct_by_ship_type": {
+          "cargo": 9.9,
+          "tanker": 9.4,
+          "tug": 12.8
+        }
+      },
+      "train_buffer_corrupted_pct": 5.15,
+      "predict_total_ms": 357.13,
+      "predict_ms_per_row": 0.01374
+    },
+    {
+      "condition": "STALE",
+      "mitigated": false,
+      "train_windows": "W1-W3",
+      "window_id": 4,
+      "buffer_pings": 90849,
+      "n_train_rows": 72624,
+      "n_train_voyages": 1015,
+      "n_test_rows": 25257,
+      "displacement_mae_m": 636.1578347747951,
+      "tail_95_error_m": 2155.079590115596,
+      "by_vessel_group": {
+        "cargo": {
+          "displacement_mae_m": 526.2281381946483,
+          "tail_95_error_m": 1595.2016789280954,
+          "n_predictions": 8997
+        },
+        "tanker": {
+          "displacement_mae_m": 610.084616232759,
+          "tail_95_error_m": 1826.4305673243296,
+          "n_predictions": 328
+        },
+        "tug": {
+          "displacement_mae_m": 698.7732939646878,
+          "tail_95_error_m": 2465.4238161803355,
+          "n_predictions": 15932
+        }
+      },
+      "physics_mae_m": 959.6179852141966,
+      "physics_tail_95_m": 2976.784296167526,
+      "data_discarded_pct": 0.0,
+      "newest_window_discarded_pct": 0.0,
+      "decisions_deferred_pct": 0.0,
+      "deferral": null,
+      "train_buffer_corrupted_pct": 10.54,
+      "predict_total_ms": 358.24,
+      "predict_ms_per_row": 0.01418
+    },
+    {
+      "condition": "STALE",
+      "mitigated": true,
+      "train_windows": "W1-W3",
+      "window_id": 4,
+      "buffer_pings": 90849,
+      "n_train_rows": 62492,
+      "n_train_voyages": 1005,
+      "n_test_rows": 25257,
+      "displacement_mae_m": 621.2785031747318,
+      "tail_95_error_m": 2173.4374257406166,
+      "by_vessel_group": {
+        "cargo": {
+          "displacement_mae_m": 493.3910664475555,
+          "tail_95_error_m": 1545.8287072716196,
+          "n_predictions": 8997
+        },
+        "tanker": {
+          "displacement_mae_m": 606.0977545304662,
+          "tail_95_error_m": 1760.4409645560274,
+          "n_predictions": 328
+        },
+        "tug": {
+          "displacement_mae_m": 693.8106745147848,
+          "tail_95_error_m": 2498.1865717547385,
+          "n_predictions": 15932
+        }
+      },
+      "physics_mae_m": 959.6179852141966,
+      "physics_tail_95_m": 2976.784296167526,
+      "data_discarded_pct": 10.77,
+      "newest_window_discarded_pct": 20.53,
+      "decisions_deferred_pct": 15.69,
+      "deferral": {
+        "safety_radius_m": 1852.0,
+        "decisions_deferred_pct": 15.69,
+        "accepted_mae_m": 471.5681852888497,
+        "deferred_mae_m": 1425.7023005660951,
+        "accepted_tail_95_m": 1550.8561065585518,
+        "median_radius_m": 1150.3397779180762,
+        "range_coverage_north_pct": 85.8,
+        "range_coverage_east_pct": 85.9,
+        "worst_10pct_deferred_pct": 55.7,
+        "deferred_pct_by_ship_type": {
+          "cargo": 8.0,
+          "tanker": 7.0,
+          "tug": 20.2
+        }
+      },
+      "train_buffer_corrupted_pct": 10.54,
+      "predict_total_ms": 350.87,
+      "predict_ms_per_row": 0.01389
+    },
+    {
+      "condition": "STALE",
+      "mitigated": false,
+      "train_windows": "W1-W4",
+      "window_id": 5,
+      "buffer_pings": 125948,
+      "n_train_rows": 100981,
+      "n_train_voyages": 1400,
+      "n_test_rows": 24891,
+      "displacement_mae_m": 728.2232152420762,
+      "tail_95_error_m": 2391.9799498972866,
+      "by_vessel_group": {
+        "cargo": {
+          "displacement_mae_m": 533.5130845248359,
+          "tail_95_error_m": 1616.3054457430608,
+          "n_predictions": 8767
+        },
+        "tanker": {
+          "displacement_mae_m": 679.5278286286605,
+          "tail_95_error_m": 2168.293436505569,
+          "n_predictions": 485
+        },
+        "tug": {
+          "displacement_mae_m": 838.8850848312798,
+          "tail_95_error_m": 2766.230043631004,
+          "n_predictions": 15639
+        }
+      },
+      "physics_mae_m": 1072.954611708308,
+      "physics_tail_95_m": 3232.595096680403,
+      "data_discarded_pct": 0.0,
+      "newest_window_discarded_pct": 0.0,
+      "decisions_deferred_pct": 0.0,
+      "deferral": null,
+      "train_buffer_corrupted_pct": 16.51,
+      "predict_total_ms": 342.42,
+      "predict_ms_per_row": 0.01376
+    },
+    {
+      "condition": "STALE",
+      "mitigated": true,
+      "train_windows": "W1-W4",
+      "window_id": 5,
+      "buffer_pings": 125948,
+      "n_train_rows": 78208,
+      "n_train_voyages": 1379,
+      "n_test_rows": 24891,
+      "displacement_mae_m": 707.9083543379002,
+      "tail_95_error_m": 2461.870745379073,
+      "by_vessel_group": {
+        "cargo": {
+          "displacement_mae_m": 498.367755727773,
+          "tail_95_error_m": 1535.2029049317398,
+          "n_predictions": 8767
+        },
+        "tanker": {
+          "displacement_mae_m": 630.4215768436596,
+          "tail_95_error_m": 2052.439606181283,
+          "n_predictions": 485
+        },
+        "tug": {
+          "displacement_mae_m": 827.7768571257824,
+          "tail_95_error_m": 2901.0116023590494,
+          "n_predictions": 15639
+        }
+      },
+      "physics_mae_m": 1072.954611708308,
+      "physics_tail_95_m": 3232.595096680403,
+      "data_discarded_pct": 16.71,
+      "newest_window_discarded_pct": 33.17,
+      "decisions_deferred_pct": 19.61,
+      "deferral": {
+        "safety_radius_m": 1852.0,
+        "decisions_deferred_pct": 19.61,
+        "accepted_mae_m": 509.9370205409216,
+        "deferred_mae_m": 1519.712526594322,
+        "accepted_tail_95_m": 1628.762612793512,
+        "median_radius_m": 1242.837138466095,
+        "range_coverage_north_pct": 85.4,
+        "range_coverage_east_pct": 86.5,
+        "worst_10pct_deferred_pct": 64.8,
+        "deferred_pct_by_ship_type": {
+          "cargo": 8.6,
+          "tanker": 24.1,
+          "tug": 25.7
+        }
+      },
+      "train_buffer_corrupted_pct": 16.51,
+      "predict_total_ms": 339.29,
+      "predict_ms_per_row": 0.01363
+    },
+    {
+      "condition": "STALE",
+      "mitigated": false,
+      "train_windows": "W1-W5",
+      "window_id": 6,
+      "buffer_pings": 156610,
+      "n_train_rows": 125047,
+      "n_train_voyages": 1754,
+      "n_test_rows": 25578,
+      "displacement_mae_m": 693.0487368577349,
+      "tail_95_error_m": 2343.9045553966157,
+      "by_vessel_group": {
+        "cargo": {
+          "displacement_mae_m": 591.3331574310084,
+          "tail_95_error_m": 1932.002604698408,
+          "n_predictions": 4896
+        },
+        "tanker": {
+          "displacement_mae_m": 735.0561669101459,
+          "tail_95_error_m": 1753.851979404931,
+          "n_predictions": 185
+        },
+        "tug": {
+          "displacement_mae_m": 716.9658028826924,
+          "tail_95_error_m": 2420.1906574811755,
+          "n_predictions": 20497
+        }
+      },
+      "physics_mae_m": 923.0683238259887,
+      "physics_tail_95_m": 2970.271059042951,
+      "data_discarded_pct": 0.0,
+      "newest_window_discarded_pct": 0.0,
+      "decisions_deferred_pct": 0.0,
+      "deferral": null,
+      "train_buffer_corrupted_pct": 22.86,
+      "predict_total_ms": 371.93,
+      "predict_ms_per_row": 0.01454
+    },
+    {
+      "condition": "STALE",
+      "mitigated": true,
+      "train_windows": "W1-W5",
+      "window_id": 6,
+      "buffer_pings": 156610,
+      "n_train_rows": 87452,
+      "n_train_voyages": 1718,
+      "n_test_rows": 25578,
+      "displacement_mae_m": 668.9288593019072,
+      "tail_95_error_m": 2423.5074855869702,
+      "by_vessel_group": {
+        "cargo": {
+          "displacement_mae_m": 548.0730883855775,
+          "tail_95_error_m": 1816.0498544655998,
+          "n_predictions": 4896
+        },
+        "tanker": {
+          "displacement_mae_m": 696.2606535709739,
+          "tail_95_error_m": 1709.8725144323098,
+          "n_predictions": 185
+        },
+        "tug": {
+          "displacement_mae_m": 697.5502903633588,
+          "tail_95_error_m": 2515.5576175881897,
+          "n_predictions": 20497
+        }
+      },
+      "physics_mae_m": 923.0683238259887,
+      "physics_tail_95_m": 2970.271059042951,
+      "data_discarded_pct": 22.26,
+      "newest_window_discarded_pct": 45.09,
+      "decisions_deferred_pct": 16.02,
+      "deferral": {
+        "safety_radius_m": 1852.0,
+        "decisions_deferred_pct": 16.02,
+        "accepted_mae_m": 518.3670133393582,
+        "deferred_mae_m": 1458.1110094423543,
+        "accepted_tail_95_m": 1822.4806894695441,
+        "median_radius_m": 1180.1040357289949,
+        "range_coverage_north_pct": 85.4,
+        "range_coverage_east_pct": 86.3,
+        "worst_10pct_deferred_pct": 50.8,
+        "deferred_pct_by_ship_type": {
+          "cargo": 10.1,
+          "tanker": 10.8,
+          "tug": 17.5
+        }
+      },
+      "train_buffer_corrupted_pct": 22.86,
+      "predict_total_ms": 359.96,
+      "predict_ms_per_row": 0.01407
+    },
+    {
+      "condition": "LOW_QUALITY",
+      "mitigated": false,
+      "train_windows": "W1-W1",
+      "window_id": 2,
+      "buffer_pings": 28310,
+      "n_train_rows": 22711,
+      "n_train_voyages": 328,
+      "n_test_rows": 24374,
+      "displacement_mae_m": 742.5740535038801,
+      "tail_95_error_m": 2398.4701117435075,
+      "by_vessel_group": {
+        "cargo": {
+          "displacement_mae_m": 659.718327390076,
+          "tail_95_error_m": 2108.9528499975754,
+          "n_predictions": 7243
+        },
+        "tanker": {
+          "displacement_mae_m": 644.3589948445116,
+          "tail_95_error_m": 2230.7114418057845,
+          "n_predictions": 484
+        },
+        "tug": {
+          "displacement_mae_m": 781.479568769899,
+          "tail_95_error_m": 2512.744585617183,
+          "n_predictions": 16647
+        }
+      },
+      "physics_mae_m": 1024.1548718918607,
+      "physics_tail_95_m": 3017.499032779692,
+      "data_discarded_pct": 0.0,
+      "newest_window_discarded_pct": 0.0,
+      "decisions_deferred_pct": 0.0,
+      "deferral": null,
+      "train_buffer_corrupted_pct": 0.07,
+      "predict_total_ms": 371.75,
+      "predict_ms_per_row": 0.01525
+    },
+    {
+      "condition": "LOW_QUALITY",
+      "mitigated": true,
+      "train_windows": "W1-W1",
+      "window_id": 2,
+      "buffer_pings": 28310,
+      "n_train_rows": 22156,
+      "n_train_voyages": 326,
+      "n_test_rows": 24374,
+      "displacement_mae_m": 739.6755632136051,
+      "tail_95_error_m": 2395.782992775594,
+      "by_vessel_group": {
+        "cargo": {
+          "displacement_mae_m": 655.8141163181342,
+          "tail_95_error_m": 2072.1661463014734,
+          "n_predictions": 7243
+        },
+        "tanker": {
+          "displacement_mae_m": 643.4700433223256,
+          "tail_95_error_m": 2297.447598097516,
+          "n_predictions": 484
+        },
+        "tug": {
+          "displacement_mae_m": 778.960235015808,
+          "tail_95_error_m": 2507.5413582541523,
+          "n_predictions": 16647
+        }
+      },
+      "physics_mae_m": 1024.1548718918607,
+      "physics_tail_95_m": 3017.499032779692,
+      "data_discarded_pct": 1.89,
+      "newest_window_discarded_pct": 1.89,
+      "decisions_deferred_pct": 14.92,
+      "deferral": {
+        "safety_radius_m": 1852.0,
+        "decisions_deferred_pct": 14.92,
+        "accepted_mae_m": 597.4536328919746,
+        "deferred_mae_m": 1550.5791015912923,
+        "accepted_tail_95_m": 1879.7275392686342,
+        "median_radius_m": 1225.6159090179208,
+        "range_coverage_north_pct": 80.4,
+        "range_coverage_east_pct": 81.5,
+        "worst_10pct_deferred_pct": 49.4,
+        "deferred_pct_by_ship_type": {
+          "cargo": 8.9,
+          "tanker": 10.5,
+          "tug": 17.6
+        }
+      },
+      "train_buffer_corrupted_pct": 0.07,
+      "predict_total_ms": 398.32,
+      "predict_ms_per_row": 0.01634
+    },
+    {
+      "condition": "LOW_QUALITY",
+      "mitigated": false,
+      "train_windows": "W1-W2",
+      "window_id": 3,
+      "buffer_pings": 61853,
+      "n_train_rows": 49198,
+      "n_train_voyages": 710,
+      "n_test_rows": 25988,
+      "displacement_mae_m": 637.1986780322561,
+      "tail_95_error_m": 2202.364021638193,
+      "by_vessel_group": {
+        "cargo": {
+          "displacement_mae_m": 538.9428329967305,
+          "tail_95_error_m": 1732.9218161723359,
+          "n_predictions": 6381
+        },
+        "tanker": {
+          "displacement_mae_m": 534.2632058709995,
+          "tail_95_error_m": 2013.46562166806,
+          "n_predictions": 128
+        },
+        "tug": {
+          "displacement_mae_m": 670.0620841418269,
+          "tail_95_error_m": 2318.951383941555,
+          "n_predictions": 19479
+        }
+      },
+      "physics_mae_m": 903.7177042568867,
+      "physics_tail_95_m": 2843.631191214984,
+      "data_discarded_pct": 0.0,
+      "newest_window_discarded_pct": 0.0,
+      "decisions_deferred_pct": 0.0,
+      "deferral": null,
+      "train_buffer_corrupted_pct": 39.58,
+      "predict_total_ms": 454.01,
+      "predict_ms_per_row": 0.01747
+    },
+    {
+      "condition": "LOW_QUALITY",
+      "mitigated": true,
+      "train_windows": "W1-W2",
+      "window_id": 3,
+      "buffer_pings": 61853,
+      "n_train_rows": 44919,
+      "n_train_voyages": 698,
+      "n_test_rows": 25988,
+      "displacement_mae_m": 632.0284738175939,
+      "tail_95_error_m": 2215.534681324,
+      "by_vessel_group": {
+        "cargo": {
+          "displacement_mae_m": 529.4648888647164,
+          "tail_95_error_m": 1709.2428986522966,
+          "n_predictions": 6381
+        },
+        "tanker": {
+          "displacement_mae_m": 534.697342097759,
+          "tail_95_error_m": 1937.9817170039369,
+          "n_predictions": 128
+        },
+        "tug": {
+          "displacement_mae_m": 666.2661975428596,
+          "tail_95_error_m": 2326.9405797893637,
+          "n_predictions": 19479
+        }
+      },
+      "physics_mae_m": 903.7177042568867,
+      "physics_tail_95_m": 2843.631191214984,
+      "data_discarded_pct": 7.27,
+      "newest_window_discarded_pct": 13.04,
+      "decisions_deferred_pct": 11.65,
+      "deferral": {
+        "safety_radius_m": 1852.0,
+        "decisions_deferred_pct": 11.65,
+        "accepted_mae_m": 510.03549708820316,
+        "deferred_mae_m": 1557.0478746454703,
+        "accepted_tail_95_m": 1762.188807198293,
+        "median_radius_m": 1029.852184680547,
+        "range_coverage_north_pct": 84.8,
+        "range_coverage_east_pct": 84.4,
+        "worst_10pct_deferred_pct": 44.7,
+        "deferred_pct_by_ship_type": {
+          "cargo": 9.5,
+          "tanker": 11.7,
+          "tug": 12.4
+        }
+      },
+      "train_buffer_corrupted_pct": 39.58,
+      "predict_total_ms": 386.51,
+      "predict_ms_per_row": 0.01487
+    },
+    {
+      "condition": "LOW_QUALITY",
+      "mitigated": false,
+      "train_windows": "W1-W3",
+      "window_id": 4,
+      "buffer_pings": 90849,
+      "n_train_rows": 72623,
+      "n_train_voyages": 1015,
+      "n_test_rows": 25257,
+      "displacement_mae_m": 632.6064944057825,
+      "tail_95_error_m": 2196.0969396796722,
+      "by_vessel_group": {
+        "cargo": {
+          "displacement_mae_m": 506.9279582733986,
+          "tail_95_error_m": 1574.425708786234,
+          "n_predictions": 8997
+        },
+        "tanker": {
+          "displacement_mae_m": 614.4634110010483,
+          "tail_95_error_m": 1834.1090327038103,
+          "n_predictions": 328
+        },
+        "tug": {
+          "displacement_mae_m": 703.9522589638926,
+          "tail_95_error_m": 2557.4075247739293,
+          "n_predictions": 15932
+        }
+      },
+      "physics_mae_m": 959.6179852141966,
+      "physics_tail_95_m": 2976.784296167526,
+      "data_discarded_pct": 0.0,
+      "newest_window_discarded_pct": 0.0,
+      "decisions_deferred_pct": 0.0,
+      "deferral": null,
+      "train_buffer_corrupted_pct": 52.88,
+      "predict_total_ms": 345.36,
+      "predict_ms_per_row": 0.01367
+    },
+    {
+      "condition": "LOW_QUALITY",
+      "mitigated": true,
+      "train_windows": "W1-W3",
+      "window_id": 4,
+      "buffer_pings": 90849,
+      "n_train_rows": 64361,
+      "n_train_voyages": 1000,
+      "n_test_rows": 25257,
+      "displacement_mae_m": 621.7250095214214,
+      "tail_95_error_m": 2167.3057501932976,
+      "by_vessel_group": {
+        "cargo": {
+          "displacement_mae_m": 495.4030979335768,
+          "tail_95_error_m": 1554.7668643591385,
+          "n_predictions": 8997
+        },
+        "tanker": {
+          "displacement_mae_m": 603.2282644193122,
+          "tail_95_error_m": 1659.054786792487,
+          "n_predictions": 328
+        },
+        "tug": {
+          "displacement_mae_m": 693.4413772686804,
+          "tail_95_error_m": 2503.1670434909674,
+          "n_predictions": 15932
+        }
+      },
+      "physics_mae_m": 959.6179852141966,
+      "physics_tail_95_m": 2976.784296167526,
+      "data_discarded_pct": 9.35,
+      "newest_window_discarded_pct": 13.78,
+      "decisions_deferred_pct": 15.55,
+      "deferral": {
+        "safety_radius_m": 1852.0,
+        "decisions_deferred_pct": 15.55,
+        "accepted_mae_m": 476.0881609122055,
+        "deferred_mae_m": 1412.7700772154817,
+        "accepted_tail_95_m": 1560.8235151010958,
+        "median_radius_m": 1145.4452936675073,
+        "range_coverage_north_pct": 87.6,
+        "range_coverage_east_pct": 86.8,
+        "worst_10pct_deferred_pct": 54.5,
+        "deferred_pct_by_ship_type": {
+          "cargo": 7.6,
+          "tanker": 8.2,
+          "tug": 20.2
+        }
+      },
+      "train_buffer_corrupted_pct": 52.88,
+      "predict_total_ms": 338.84,
+      "predict_ms_per_row": 0.01342
+    },
+    {
+      "condition": "LOW_QUALITY",
+      "mitigated": false,
+      "train_windows": "W1-W4",
+      "window_id": 5,
+      "buffer_pings": 125949,
+      "n_train_rows": 100981,
+      "n_train_voyages": 1400,
+      "n_test_rows": 24891,
+      "displacement_mae_m": 714.5911321262502,
+      "tail_95_error_m": 2464.606696474577,
+      "by_vessel_group": {
+        "cargo": {
+          "displacement_mae_m": 498.2405958881427,
+          "tail_95_error_m": 1553.1058377380286,
+          "n_predictions": 8767
+        },
+        "tanker": {
+          "displacement_mae_m": 676.4380509933881,
+          "tail_95_error_m": 1982.9337489616782,
+          "n_predictions": 485
+        },
+        "tug": {
+          "displacement_mae_m": 837.0573636978932,
+          "tail_95_error_m": 2907.2312688702286,
+          "n_predictions": 15639
+        }
+      },
+      "physics_mae_m": 1072.954611708308,
+      "physics_tail_95_m": 3232.595096680403,
+      "data_discarded_pct": 0.0,
+      "newest_window_discarded_pct": 0.0,
+      "decisions_deferred_pct": 0.0,
+      "deferral": null,
+      "train_buffer_corrupted_pct": 59.5,
+      "predict_total_ms": 357.77,
+      "predict_ms_per_row": 0.01437
+    },
+    {
+      "condition": "LOW_QUALITY",
+      "mitigated": true,
+      "train_windows": "W1-W4",
+      "window_id": 5,
+      "buffer_pings": 125949,
+      "n_train_rows": 85056,
+      "n_train_voyages": 1377,
+      "n_test_rows": 24891,
+      "displacement_mae_m": 696.823356690114,
+      "tail_95_error_m": 2434.8750002451234,
+      "by_vessel_group": {
+        "cargo": {
+          "displacement_mae_m": 482.62196349727316,
+          "tail_95_error_m": 1495.6377615320566,
+          "n_predictions": 8767
+        },
+        "tanker": {
+          "displacement_mae_m": 595.142156104956,
+          "tail_95_error_m": 2068.4406419518973,
+          "n_predictions": 485
+        },
+        "tug": {
+          "displacement_mae_m": 820.0549569462326,
+          "tail_95_error_m": 2884.4689000242806,
+          "n_predictions": 15639
+        }
+      },
+      "physics_mae_m": 1072.954611708308,
+      "physics_tail_95_m": 3232.595096680403,
+      "data_discarded_pct": 12.57,
+      "newest_window_discarded_pct": 21.91,
+      "decisions_deferred_pct": 19.74,
+      "deferral": {
+        "safety_radius_m": 1852.0,
+        "decisions_deferred_pct": 19.74,
+        "accepted_mae_m": 502.39670250105223,
+        "deferred_mae_m": 1487.431070386242,
+        "accepted_tail_95_m": 1603.0335612749927,
+        "median_radius_m": 1256.4760169025324,
+        "range_coverage_north_pct": 88.1,
+        "range_coverage_east_pct": 87.9,
+        "worst_10pct_deferred_pct": 64.4,
+        "deferred_pct_by_ship_type": {
+          "cargo": 8.7,
+          "tanker": 23.3,
+          "tug": 25.8
+        }
+      },
+      "train_buffer_corrupted_pct": 59.5,
+      "predict_total_ms": 358.6,
+      "predict_ms_per_row": 0.01441
+    },
+    {
+      "condition": "LOW_QUALITY",
+      "mitigated": false,
+      "train_windows": "W1-W5",
+      "window_id": 6,
+      "buffer_pings": 156611,
+      "n_train_rows": 125047,
+      "n_train_voyages": 1754,
+      "n_test_rows": 25578,
+      "displacement_mae_m": 687.0602062775647,
+      "tail_95_error_m": 2434.3033106015478,
+      "by_vessel_group": {
+        "cargo": {
+          "displacement_mae_m": 572.211045037532,
+          "tail_95_error_m": 1918.387506814245,
+          "n_predictions": 4896
+        },
+        "tanker": {
+          "displacement_mae_m": 713.0252930119464,
+          "tail_95_error_m": 1821.8031083957126,
+          "n_predictions": 185
+        },
+        "tug": {
+          "displacement_mae_m": 714.2592086869581,
+          "tail_95_error_m": 2531.1643336449433,
+          "n_predictions": 20497
+        }
+      },
+      "physics_mae_m": 923.0683238259887,
+      "physics_tail_95_m": 2970.271059042951,
+      "data_discarded_pct": 0.0,
+      "newest_window_discarded_pct": 0.0,
+      "decisions_deferred_pct": 0.0,
+      "deferral": null,
+      "train_buffer_corrupted_pct": 63.44,
+      "predict_total_ms": 353.5,
+      "predict_ms_per_row": 0.01382
+    },
+    {
+      "condition": "LOW_QUALITY",
+      "mitigated": true,
+      "train_windows": "W1-W5",
+      "window_id": 6,
+      "buffer_pings": 156611,
+      "n_train_rows": 97821,
+      "n_train_voyages": 1713,
+      "n_test_rows": 25578,
+      "displacement_mae_m": 667.6895779126816,
+      "tail_95_error_m": 2394.1463658406396,
+      "by_vessel_group": {
+        "cargo": {
+          "displacement_mae_m": 548.7668506630592,
+          "tail_95_error_m": 1831.3503539205867,
+          "n_predictions": 4896
+        },
+        "tanker": {
+          "displacement_mae_m": 677.8837342979133,
+          "tail_95_error_m": 1706.1598294441771,
+          "n_predictions": 185
+        },
+        "tug": {
+          "displacement_mae_m": 696.0039533667912,
+          "tail_95_error_m": 2492.5132275890874,
+          "n_predictions": 20497
+        }
+      },
+      "physics_mae_m": 923.0683238259887,
+      "physics_tail_95_m": 2970.271059042951,
+      "data_discarded_pct": 17.47,
+      "newest_window_discarded_pct": 37.73,
+      "decisions_deferred_pct": 16.55,
+      "deferral": {
+        "safety_radius_m": 1852.0,
+        "decisions_deferred_pct": 16.55,
+        "accepted_mae_m": 509.4718899992704,
+        "deferred_mae_m": 1465.2801142433025,
+        "accepted_tail_95_m": 1796.1157723432987,
+        "median_radius_m": 1228.5692249559906,
+        "range_coverage_north_pct": 89.2,
+        "range_coverage_east_pct": 89.1,
+        "worst_10pct_deferred_pct": 53.1,
+        "deferred_pct_by_ship_type": {
+          "cargo": 9.3,
+          "tanker": 12.4,
+          "tug": 18.3
+        }
+      },
+      "train_buffer_corrupted_pct": 63.44,
+      "predict_total_ms": 335.41,
+      "predict_ms_per_row": 0.01311
+    },
+    {
+      "condition": "COMBINED",
+      "mitigated": false,
+      "train_windows": "W1-W1",
+      "window_id": 2,
+      "buffer_pings": 28310,
+      "n_train_rows": 22711,
+      "n_train_voyages": 328,
+      "n_test_rows": 24374,
+      "displacement_mae_m": 742.5740535038801,
+      "tail_95_error_m": 2398.4701117435075,
+      "by_vessel_group": {
+        "cargo": {
+          "displacement_mae_m": 659.718327390076,
+          "tail_95_error_m": 2108.9528499975754,
+          "n_predictions": 7243
+        },
+        "tanker": {
+          "displacement_mae_m": 644.3589948445116,
+          "tail_95_error_m": 2230.7114418057845,
+          "n_predictions": 484
+        },
+        "tug": {
+          "displacement_mae_m": 781.479568769899,
+          "tail_95_error_m": 2512.744585617183,
+          "n_predictions": 16647
+        }
+      },
+      "physics_mae_m": 1024.1548718918607,
+      "physics_tail_95_m": 3017.499032779692,
+      "data_discarded_pct": 0.0,
+      "newest_window_discarded_pct": 0.0,
+      "decisions_deferred_pct": 0.0,
+      "deferral": null,
+      "train_buffer_corrupted_pct": 0.07,
+      "predict_total_ms": 373.35,
+      "predict_ms_per_row": 0.01532
+    },
+    {
+      "condition": "COMBINED",
+      "mitigated": true,
+      "train_windows": "W1-W1",
+      "window_id": 2,
+      "buffer_pings": 28310,
+      "n_train_rows": 22156,
+      "n_train_voyages": 326,
+      "n_test_rows": 24374,
+      "displacement_mae_m": 739.6755632136051,
+      "tail_95_error_m": 2395.782992775594,
+      "by_vessel_group": {
+        "cargo": {
+          "displacement_mae_m": 655.8141163181342,
+          "tail_95_error_m": 2072.1661463014734,
+          "n_predictions": 7243
+        },
+        "tanker": {
+          "displacement_mae_m": 643.4700433223256,
+          "tail_95_error_m": 2297.447598097516,
+          "n_predictions": 484
+        },
+        "tug": {
+          "displacement_mae_m": 778.960235015808,
+          "tail_95_error_m": 2507.5413582541523,
+          "n_predictions": 16647
+        }
+      },
+      "physics_mae_m": 1024.1548718918607,
+      "physics_tail_95_m": 3017.499032779692,
+      "data_discarded_pct": 1.89,
+      "newest_window_discarded_pct": 1.89,
+      "decisions_deferred_pct": 14.92,
+      "deferral": {
+        "safety_radius_m": 1852.0,
+        "decisions_deferred_pct": 14.92,
+        "accepted_mae_m": 597.4536328919746,
+        "deferred_mae_m": 1550.5791015912923,
+        "accepted_tail_95_m": 1879.7275392686342,
+        "median_radius_m": 1225.6159090179208,
+        "range_coverage_north_pct": 80.4,
+        "range_coverage_east_pct": 81.5,
+        "worst_10pct_deferred_pct": 49.4,
+        "deferred_pct_by_ship_type": {
+          "cargo": 8.9,
+          "tanker": 10.5,
+          "tug": 17.6
+        }
+      },
+      "train_buffer_corrupted_pct": 0.07,
+      "predict_total_ms": 369.72,
+      "predict_ms_per_row": 0.01517
+    },
+    {
+      "condition": "COMBINED",
+      "mitigated": false,
+      "train_windows": "W1-W2",
+      "window_id": 3,
+      "buffer_pings": 61853,
+      "n_train_rows": 49198,
+      "n_train_voyages": 710,
+      "n_test_rows": 25988,
+      "displacement_mae_m": 636.9308562375132,
+      "tail_95_error_m": 2154.0236985944534,
+      "by_vessel_group": {
+        "cargo": {
+          "displacement_mae_m": 550.2917028810267,
+          "tail_95_error_m": 1767.3186291158092,
+          "n_predictions": 6381
+        },
+        "tanker": {
+          "displacement_mae_m": 551.2299518631511,
+          "tail_95_error_m": 2011.0308844941014,
+          "n_predictions": 128
+        },
+        "tug": {
+          "displacement_mae_m": 665.8755737963025,
+          "tail_95_error_m": 2278.6316150560133,
+          "n_predictions": 19479
+        }
+      },
+      "physics_mae_m": 903.7177042568867,
+      "physics_tail_95_m": 2843.631191214984,
+      "data_discarded_pct": 0.0,
+      "newest_window_discarded_pct": 0.0,
+      "decisions_deferred_pct": 0.0,
+      "deferral": null,
+      "train_buffer_corrupted_pct": 39.58,
+      "predict_total_ms": 366.58,
+      "predict_ms_per_row": 0.01411
+    },
+    {
+      "condition": "COMBINED",
+      "mitigated": true,
+      "train_windows": "W1-W2",
+      "window_id": 3,
+      "buffer_pings": 61853,
+      "n_train_rows": 42418,
+      "n_train_voyages": 700,
+      "n_test_rows": 25988,
+      "displacement_mae_m": 634.276306213659,
+      "tail_95_error_m": 2209.269038444118,
+      "by_vessel_group": {
+        "cargo": {
+          "displacement_mae_m": 529.634672861968,
+          "tail_95_error_m": 1721.8338550926987,
+          "n_predictions": 6381
+        },
+        "tanker": {
+          "displacement_mae_m": 531.5634771706281,
+          "tail_95_error_m": 2003.2143058772672,
+          "n_predictions": 128
+        },
+        "tug": {
+          "displacement_mae_m": 669.2301285112437,
+          "tail_95_error_m": 2349.473118909953,
+          "n_predictions": 19479
+        }
+      },
+      "physics_mae_m": 903.7177042568867,
+      "physics_tail_95_m": 2843.631191214984,
+      "data_discarded_pct": 11.07,
+      "newest_window_discarded_pct": 20.83,
+      "decisions_deferred_pct": 11.93,
+      "deferral": {
+        "safety_radius_m": 1852.0,
+        "decisions_deferred_pct": 11.93,
+        "accepted_mae_m": 512.1870873523826,
+        "deferred_mae_m": 1535.688577599755,
+        "accepted_tail_95_m": 1768.439704127492,
+        "median_radius_m": 1030.0738989303954,
+        "range_coverage_north_pct": 84.8,
+        "range_coverage_east_pct": 84.2,
+        "worst_10pct_deferred_pct": 45.7,
+        "deferred_pct_by_ship_type": {
+          "cargo": 10.6,
+          "tanker": 10.9,
+          "tug": 12.4
+        }
+      },
+      "train_buffer_corrupted_pct": 39.58,
+      "predict_total_ms": 334.65,
+      "predict_ms_per_row": 0.01288
+    },
+    {
+      "condition": "COMBINED",
+      "mitigated": false,
+      "train_windows": "W1-W3",
+      "window_id": 4,
+      "buffer_pings": 90848,
+      "n_train_rows": 72623,
+      "n_train_voyages": 1014,
+      "n_test_rows": 25257,
+      "displacement_mae_m": 649.4205985559362,
+      "tail_95_error_m": 2180.9148751371677,
+      "by_vessel_group": {
+        "cargo": {
+          "displacement_mae_m": 542.2638686871361,
+          "tail_95_error_m": 1629.9196777252332,
+          "n_predictions": 8997
+        },
+        "tanker": {
+          "displacement_mae_m": 627.0094676034048,
+          "tail_95_error_m": 1784.7357954942988,
+          "n_predictions": 328
+        },
+        "tug": {
+          "displacement_mae_m": 710.3947354867688,
+          "tail_95_error_m": 2494.4613127405437,
+          "n_predictions": 15932
+        }
+      },
+      "physics_mae_m": 959.6179852141966,
+      "physics_tail_95_m": 2976.784296167526,
+      "data_discarded_pct": 0.0,
+      "newest_window_discarded_pct": 0.0,
+      "decisions_deferred_pct": 0.0,
+      "deferral": null,
+      "train_buffer_corrupted_pct": 52.88,
+      "predict_total_ms": 361.18,
+      "predict_ms_per_row": 0.0143
+    },
+    {
+      "condition": "COMBINED",
+      "mitigated": true,
+      "train_windows": "W1-W3",
+      "window_id": 4,
+      "buffer_pings": 90848,
+      "n_train_rows": 56656,
+      "n_train_voyages": 998,
+      "n_test_rows": 25257,
+      "displacement_mae_m": 618.3754480462235,
+      "tail_95_error_m": 2138.21036762264,
+      "by_vessel_group": {
+        "cargo": {
+          "displacement_mae_m": 491.5103349756598,
+          "tail_95_error_m": 1535.9391790943205,
+          "n_predictions": 8997
+        },
+        "tanker": {
+          "displacement_mae_m": 601.2910847466737,
+          "tail_95_error_m": 1656.549814965036,
+          "n_predictions": 328
+        },
+        "tug": {
+          "displacement_mae_m": 690.3694910702076,
+          "tail_95_error_m": 2497.9594359009398,
+          "n_predictions": 15932
+        }
+      },
+      "physics_mae_m": 959.6179852141966,
+      "physics_tail_95_m": 2976.784296167526,
+      "data_discarded_pct": 16.84,
+      "newest_window_discarded_pct": 29.4,
+      "decisions_deferred_pct": 16.55,
+      "deferral": {
+        "safety_radius_m": 1852.0,
+        "decisions_deferred_pct": 16.55,
+        "accepted_mae_m": 468.5050914665559,
+        "deferred_mae_m": 1373.8568245764973,
+        "accepted_tail_95_m": 1547.1218869875215,
+        "median_radius_m": 1147.693482014859,
+        "range_coverage_north_pct": 86.8,
+        "range_coverage_east_pct": 86.7,
+        "worst_10pct_deferred_pct": 55.7,
+        "deferred_pct_by_ship_type": {
+          "cargo": 8.6,
+          "tanker": 10.4,
+          "tug": 21.2
+        }
+      },
+      "train_buffer_corrupted_pct": 52.88,
+      "predict_total_ms": 351.02,
+      "predict_ms_per_row": 0.0139
+    },
+    {
+      "condition": "COMBINED",
+      "mitigated": false,
+      "train_windows": "W1-W4",
+      "window_id": 5,
+      "buffer_pings": 125945,
+      "n_train_rows": 100977,
+      "n_train_voyages": 1399,
+      "n_test_rows": 24891,
+      "displacement_mae_m": 742.6638415043299,
+      "tail_95_error_m": 2416.1793409688853,
+      "by_vessel_group": {
+        "cargo": {
+          "displacement_mae_m": 548.9958338633619,
+          "tail_95_error_m": 1633.2689296977358,
+          "n_predictions": 8767
+        },
+        "tanker": {
+          "displacement_mae_m": 712.871115377942,
+          "tail_95_error_m": 1992.178252877732,
+          "n_predictions": 485
+        },
+        "tug": {
+          "displacement_mae_m": 852.155298449126,
+          "tail_95_error_m": 2774.675831283209,
+          "n_predictions": 15639
+        }
+      },
+      "physics_mae_m": 1072.954611708308,
+      "physics_tail_95_m": 3232.595096680403,
+      "data_discarded_pct": 0.0,
+      "newest_window_discarded_pct": 0.0,
+      "decisions_deferred_pct": 0.0,
+      "deferral": null,
+      "train_buffer_corrupted_pct": 59.5,
+      "predict_total_ms": 351.9,
+      "predict_ms_per_row": 0.01414
+    },
+    {
+      "condition": "COMBINED",
+      "mitigated": true,
+      "train_windows": "W1-W4",
+      "window_id": 5,
+      "buffer_pings": 125945,
+      "n_train_rows": 67788,
+      "n_train_voyages": 1369,
+      "n_test_rows": 24891,
+      "displacement_mae_m": 701.7010217282998,
+      "tail_95_error_m": 2433.637254392498,
+      "by_vessel_group": {
+        "cargo": {
+          "displacement_mae_m": 492.83656679326907,
+          "tail_95_error_m": 1491.812356339185,
+          "n_predictions": 8767
+        },
+        "tanker": {
+          "displacement_mae_m": 615.1871926345437,
+          "tail_95_error_m": 2057.611254055523,
+          "n_predictions": 485
+        },
+        "tug": {
+          "displacement_mae_m": 821.4704368779824,
+          "tail_95_error_m": 2876.0834673261,
+          "n_predictions": 15639
+        }
+      },
+      "physics_mae_m": 1072.954611708308,
+      "physics_tail_95_m": 3232.595096680403,
+      "data_discarded_pct": 24.21,
+      "newest_window_discarded_pct": 44.73,
+      "decisions_deferred_pct": 20.48,
+      "deferral": {
+        "safety_radius_m": 1852.0,
+        "decisions_deferred_pct": 20.48,
+        "accepted_mae_m": 503.7464688092202,
+        "deferred_mae_m": 1470.2601558843105,
+        "accepted_tail_95_m": 1601.9777090641198,
+        "median_radius_m": 1248.9344443531597,
+        "range_coverage_north_pct": 86.2,
+        "range_coverage_east_pct": 87.2,
+        "worst_10pct_deferred_pct": 65.1,
+        "deferred_pct_by_ship_type": {
+          "cargo": 10.2,
+          "tanker": 24.7,
+          "tug": 26.1
+        }
+      },
+      "train_buffer_corrupted_pct": 59.5,
+      "predict_total_ms": 342.38,
+      "predict_ms_per_row": 0.01376
+    },
+    {
+      "condition": "COMBINED",
+      "mitigated": false,
+      "train_windows": "W1-W5",
+      "window_id": 6,
+      "buffer_pings": 156607,
+      "n_train_rows": 125043,
+      "n_train_voyages": 1753,
+      "n_test_rows": 25578,
+      "displacement_mae_m": 717.6948826464555,
+      "tail_95_error_m": 2398.6295576542866,
+      "by_vessel_group": {
+        "cargo": {
+          "displacement_mae_m": 642.4973014994234,
+          "tail_95_error_m": 2141.3262046170007,
+          "n_predictions": 4896
+        },
+        "tanker": {
+          "displacement_mae_m": 754.1112378413254,
+          "tail_95_error_m": 1964.61647229395,
+          "n_predictions": 185
+        },
+        "tug": {
+          "displacement_mae_m": 735.3282110157204,
+          "tail_95_error_m": 2448.235125448643,
+          "n_predictions": 20497
+        }
+      },
+      "physics_mae_m": 923.0683238259887,
+      "physics_tail_95_m": 2970.271059042951,
+      "data_discarded_pct": 0.0,
+      "newest_window_discarded_pct": 0.0,
+      "decisions_deferred_pct": 0.0,
+      "deferral": null,
+      "train_buffer_corrupted_pct": 63.44,
+      "predict_total_ms": 345.44,
+      "predict_ms_per_row": 0.01351
+    },
+    {
+      "condition": "COMBINED",
+      "mitigated": true,
+      "train_windows": "W1-W5",
+      "window_id": 6,
+      "buffer_pings": 156607,
+      "n_train_rows": 72385,
+      "n_train_voyages": 1693,
+      "n_test_rows": 25578,
+      "displacement_mae_m": 668.661701267686,
+      "tail_95_error_m": 2403.062182146485,
+      "by_vessel_group": {
+        "cargo": {
+          "displacement_mae_m": 550.7718267360184,
+          "tail_95_error_m": 1879.9220381761286,
+          "n_predictions": 4896
+        },
+        "tanker": {
+          "displacement_mae_m": 686.2688787630017,
+          "tail_95_error_m": 1728.1640325302221,
+          "n_predictions": 185
+        },
+        "tug": {
+          "displacement_mae_m": 696.6624573720139,
+          "tail_95_error_m": 2492.822144924525,
+          "n_predictions": 20497
+        }
+      },
+      "physics_mae_m": 923.0683238259887,
+      "physics_tail_95_m": 2970.271059042951,
+      "data_discarded_pct": 31.2,
+      "newest_window_discarded_pct": 59.88,
+      "decisions_deferred_pct": 16.39,
+      "deferral": {
+        "safety_radius_m": 1852.0,
+        "decisions_deferred_pct": 16.39,
+        "accepted_mae_m": 521.2790669299919,
+        "deferred_mae_m": 1420.55221127387,
+        "accepted_tail_95_m": 1883.495831859077,
+        "median_radius_m": 1193.6722524399395,
+        "range_coverage_north_pct": 87.1,
+        "range_coverage_east_pct": 87.6,
+        "worst_10pct_deferred_pct": 48.7,
+        "deferred_pct_by_ship_type": {
+          "cargo": 11.3,
+          "tanker": 11.4,
+          "tug": 17.6
+        }
+      },
+      "train_buffer_corrupted_pct": 63.44,
+      "predict_total_ms": 374.61,
+      "predict_ms_per_row": 0.01465
+    }
+  ],
+  "created_utc": "2026-10-23T00:31:35Z"
+}
