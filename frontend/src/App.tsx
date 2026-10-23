@@ -26,6 +26,7 @@ export function App() {
   const [mitigated, setMitigated] = useState<boolean>(true)
   const [window, setWindow] = useState<number>(5)
   const [vesselType, setVesselType] = useState<VesselPresetType>('CARGO_CONTAINER')
+  const [timerResetTrigger, setTimerResetTrigger] = useState<number>(0)
   const [apiOnline, setApiOnline] = useState<boolean>(false)
   const [exportingJson, setExportingJson] = useState<boolean>(false)
   const [scenario, setScenario] = useState<ScenarioData>(() =>
@@ -38,15 +39,24 @@ export function App() {
   const [hitlLogs, setHitlLogs] = useState<HitlLogsData>(() => buildFallbackHitlLogs())
 
   const [matrixOpen, setMatrixOpen] = useState<boolean>(false)
+  const [matrixWindow, setMatrixWindow] = useState<number>(6)
   const [matrixData, setMatrixData] = useState<MatrixSummaryData>(() =>
-    buildFallbackMatrixSummary(5),
+    buildFallbackMatrixSummary(6),
   )
 
   const currentScenarioKey = `${condition}-${String(mitigated)}-${window}-${vesselType}`
   const operatorVerifiedAction =
     operatorVerified?.key === currentScenarioKey ? operatorVerified.action : null
 
+  const bumpTimerReset = () => setTimerResetTrigger((n) => n + 1)
+
+  const handleOpenMatrix = () => {
+    setMatrixWindow(window === 1 ? 6 : window)
+    setMatrixOpen(true)
+  }
+
   const handleSelectStoryboardStep = (step: StoryboardStepId) => {
+    bumpTimerReset()
     if (step === 1) {
       // [1. Baseline Reference (W1)] -> Loads NOMINAL, W1, Countermeasure OFF
       setCondition('NOMINAL')
@@ -175,7 +185,7 @@ export function App() {
 
     async function fetchMatrixSummary() {
       try {
-        const params = new URLSearchParams({ window: String(window) })
+        const params = new URLSearchParams({ window: String(matrixWindow) })
         const res = await fetch(`${API_BASE_URL}/api/matrix-summary?${params.toString()}`, {
           signal: controller.signal,
         })
@@ -188,7 +198,7 @@ export function App() {
         }
       } catch {
         if (!cancelled) {
-          setMatrixData(buildFallbackMatrixSummary(window))
+          setMatrixData(buildFallbackMatrixSummary(matrixWindow))
         }
       }
     }
@@ -198,7 +208,7 @@ export function App() {
       cancelled = true
       controller.abort()
     }
-  }, [window])
+  }, [matrixWindow])
 
   const handleOverrideSubmit = async (
     action: HitlOverrideRequest['action'],
@@ -326,16 +336,28 @@ export function App() {
     <div className="h-screen w-screen overflow-hidden flex flex-col bg-slate-950 text-slate-100">
       <HeaderControls
         condition={condition}
-        onConditionChange={setCondition}
+        onConditionChange={(c) => {
+          bumpTimerReset()
+          setCondition(c)
+        }}
         mitigated={mitigated}
-        onMitigatedChange={setMitigated}
+        onMitigatedChange={(m) => {
+          bumpTimerReset()
+          setMitigated(m)
+        }}
         window={window}
-        onWindowChange={setWindow}
+        onWindowChange={(w) => {
+          bumpTimerReset()
+          setWindow(w)
+        }}
         vesselType={vesselType}
-        onVesselTypeChange={setVesselType}
+        onVesselTypeChange={(v) => {
+          bumpTimerReset()
+          setVesselType(v)
+        }}
         windowLabel={scenario.window_label}
         apiOnline={apiOnline}
-        onOpenMatrix={() => setMatrixOpen(true)}
+        onOpenMatrix={handleOpenMatrix}
         onSelectStoryboardStep={handleSelectStoryboardStep}
         onExportResultsJson={handleExportResultsJson}
         exportingJson={exportingJson}
@@ -354,7 +376,12 @@ export function App() {
             hitlLogs={hitlLogs}
             operatorVerifiedAction={operatorVerifiedAction}
             onSubmitOverride={handleOverrideSubmit}
-            onSelectVesselPreset={setVesselType}
+            onSelectVesselPreset={(v) => {
+              bumpTimerReset()
+              setVesselType(v)
+            }}
+            timerResetTrigger={timerResetTrigger}
+            onResetTimer={bumpTimerReset}
           />
         </section>
       </main>
@@ -363,14 +390,20 @@ export function App() {
         open={matrixOpen}
         onClose={() => setMatrixOpen(false)}
         matrixData={matrixData}
-        selectedWindow={window}
-        onWindowChange={setWindow}
+        selectedWindow={matrixWindow}
+        onWindowChange={(w) => {
+          bumpTimerReset()
+          setMatrixWindow(w)
+          setWindow(w)
+        }}
         activeCondition={condition}
         activeMitigated={mitigated}
         onSelectRun={(c, m, w) => {
+          bumpTimerReset()
           setCondition(c)
           setMitigated(m)
           setWindow(w)
+          setMatrixWindow(w)
         }}
       />
     </div>

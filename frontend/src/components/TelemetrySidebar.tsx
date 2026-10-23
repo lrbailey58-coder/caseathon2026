@@ -8,6 +8,7 @@ import {
   Cpu,
   FileSpreadsheet,
   Gauge,
+  RotateCcw,
   Scale,
   ShieldAlert,
   TrendingUp,
@@ -48,6 +49,8 @@ interface TelemetrySidebarProps {
     operatorNotes?: string,
   ) => Promise<HitlOverrideResponse>
   onSelectVesselPreset: (vesselType: VesselPresetType) => void
+  timerResetTrigger: number
+  onResetTimer: () => void
 }
 
 export function TelemetrySidebar({
@@ -56,6 +59,8 @@ export function TelemetrySidebar({
   operatorVerifiedAction,
   onSubmitOverride,
   onSelectVesselPreset,
+  timerResetTrigger,
+  onResetTimer,
 }: TelemetrySidebarProps) {
   const {
     metrics,
@@ -71,8 +76,13 @@ export function TelemetrySidebar({
 
   const currentScenarioKey = `${condition}-${String(mitigated)}-${windowNum}-${String(vessel_type)}`
 
-  // Live Watch Officer inspection stopwatch (resets when scenario selection changes)
-  const [reviewSeconds, setReviewSeconds] = useState<number>(0)
+  // Live Watch Officer inspection stopwatch (resets when scenario selection or preset changes)
+  const stopwatchKey = `${currentScenarioKey}-${timerResetTrigger}`
+  const [stopwatchState, setStopwatchState] = useState<{
+    key: string
+    seconds: number
+  }>(() => ({ key: stopwatchKey, seconds: 0 }))
+  const reviewSeconds = stopwatchState.key === stopwatchKey ? stopwatchState.seconds : 0
   const [submitting, setSubmitting] = useState<boolean>(false)
   const [toastState, setToastState] = useState<{
     key: string
@@ -89,10 +99,33 @@ export function TelemetrySidebar({
   useEffect(() => {
     const start = Date.now()
     const timer = globalThis.setInterval(() => {
-      setReviewSeconds(Number(((Date.now() - start) / 1000).toFixed(1)))
+      setStopwatchState({
+        key: stopwatchKey,
+        seconds: Number(((Date.now() - start) / 1000).toFixed(1)),
+      })
     }, 100)
     return () => globalThis.clearInterval(timer)
-  }, [condition, windowNum, mitigated, vessel_type])
+  }, [stopwatchKey])
+
+  const filteredPctLabel = `${metrics.data_discarded_pct.toFixed(1)}%`
+  const syncedExplanation = hitl_alert.explanation
+    .replace(/the gate flags \d+(?:\.\d+)?% of them/i, `the gate flags ${filteredPctLabel} of Tier-2 records`)
+    .replace(
+      /(?:Even on clean data )?the trust gate (?:wrongly )?flags \d+(?:\.\d+)?% of its (?:valid )?fast-feed reports/i,
+      `The trust gate flags ${filteredPctLabel} of its fast-feed reports`,
+    )
+    .replace(
+      /Trust Gate falsely flags \d+(?:\.\d+)?% of valid high-frequency Tier-2 turn pings/i,
+      `Trust Gate falsely flags ${filteredPctLabel} of valid high-frequency Tier-2 turn pings`,
+    )
+    .replace(
+      /Trust Gate filters \d+(?:\.\d+)?% of Tier-2 records/i,
+      `Trust Gate filters ${filteredPctLabel} of Tier-2 records`,
+    )
+    .replace(
+      /\(\d+(?:\.\d+)?% filtered(?:\s+by Trust Gate)?\)/i,
+      `(${filteredPctLabel} filtered by Trust Gate)`,
+    )
 
   useEffect(() => {
     if (isTugRareManeuver) {
@@ -436,6 +469,15 @@ export function TelemetrySidebar({
             <div className="flex items-center gap-1.5 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-amber-300 font-mono text-xs">
               <Clock className="h-3.5 w-3.5 animate-pulse" />
               <span>Timer: {reviewSeconds.toFixed(1)}s</span>
+              <button
+                type="button"
+                onClick={onResetTimer}
+                title="Reset HITL review timer to 0.0s"
+                aria-label="Reset HITL review timer to 0.0s"
+                className="ml-0.5 rounded p-0.5 text-amber-300/80 hover:bg-amber-500/20 hover:text-amber-200 transition-colors cursor-pointer"
+              >
+                <RotateCcw className="h-3 w-3" />
+              </button>
             </div>
           </div>
 
@@ -445,7 +487,7 @@ export function TelemetrySidebar({
               <AlertTriangle className="h-3.5 w-3.5" />
               Cross-Source Diagnostic Evidence:
             </div>
-            {hitl_alert.explanation}
+            {syncedExplanation}
           </div>
 
           {/* Optional Watch Officer Operator Note Input */}
@@ -659,6 +701,31 @@ export function TelemetrySidebar({
                 collision-avoidance advisory.
               </li>
             </ul>
+          </div>
+
+          {/* Pilot Governance & AI Component Strip */}
+          <div className="rounded border border-slate-800 bg-slate-950/90 p-2.5 space-y-1.5 font-mono text-[11px]">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-amber-300">
+              Pilot Governance &amp; AI Component Summary
+            </div>
+            <div className="space-y-1 text-slate-300 leading-snug">
+              <div>
+                <strong className="text-slate-100">AI Component &amp; Entry Stage:</strong>{' '}
+                Rolling-Window Gradient Boosted Quantile Regressor (Training-Time Buffer Drift)
+              </div>
+              <div>
+                <strong className="text-slate-100">Pilot Ownership:</strong>{' '}
+                Maritime Data Steward (Feed Health) &amp; Harbor Ops Lead (Deferral Thresholds)
+              </div>
+              <div>
+                <strong className="text-rose-300">System Do-Not-Use Boundary:</strong>{' '}
+                Auto-defer all outputs if Tier-1 USCG Anchor uptime &lt; 85%
+              </div>
+              <div>
+                <strong className="text-cyan-300">Bounded Next Step:</strong>{' '}
+                Vessel-class-aware kinematic thresholds (separating Harbor Tugs from Cargo vessels) at Pilot Gate 1.
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>

@@ -291,34 +291,36 @@ def build_explanation(
     corrupted_pct: float,
     divergence_m: float,
     vessel_type: VesselPresetType = "CARGO_CONTAINER",
+    discarded_pct: float | None = None,
 ) -> str:
     window_tag = "W6 (Unseen Test Period)" if window_id == 6 else f"W{window_id}"
+    filtered_str = f"{discarded_pct:.1f}%" if discarded_pct is not None else "82.4%"
     if vessel_type == "HARBOR_TUG_RARE_MANEUVER":
         return (
             f"[{window_tag} // FAILURE MODE] TUG CAPE HENRY (MMSI 367004890) executes a legitimate high-G "
             "emergency escort turn in Norfolk channel (COG delta = 64.2°/min > 45°/min gate threshold). "
-            f"Kinematic + Tier-1 Anchor Trust Gate falsely flags 82% of valid high-frequency Tier-2 turn pings as "
+            f"Kinematic + Tier-1 Anchor Trust Gate falsely flags {filtered_str} of valid high-frequency Tier-2 turn pings as "
             f"'Low-Quality / Sensor Spike', causing the mitigated trajectory to lag {divergence_m:.0f}m along the "
             "pre-turn anchor vector until Watch Officer manual waypoint verification."
         )
     if condition == "NOMINAL":
         return (
-            f"[{window_tag}] Tier-2 commercial stream aligns within 45m of delayed Tier-1 USCG coastal anchor. "
+            f"[{window_tag}] Tier-2 commercial stream aligns within 45m of delayed Tier-1 USCG coastal anchor ({filtered_str} filtered). "
             "Kinematic velocity and heading deltas remain within nominal Norfolk channel bounds."
         )
     if condition == "STALE":
         return (
             f"[{window_tag}] Tier-2 Fast Feed repeats cached vessel coordinates (avg age {staleness_min:.1f} min) "
-            f"with fresh timestamps, deviating {divergence_m:.0f}m from Tier-1 USCG Anchor trajectory."
+            f"with fresh timestamps, deviating {divergence_m:.0f}m from Tier-1 USCG Anchor trajectory; Trust Gate filters {filtered_str} of Tier-2 records."
         )
     if condition == "LOW_QUALITY":
         return (
             f"[{window_tag}] Tier-2 Fast Feed exhibits severe GPS multipath jitter and SOG/COG spikes across "
-            f"{corrupted_pct:.0f}% of retraining buffer; deviates {divergence_m:.0f}m from Tier-1 Anchor."
+            f"{corrupted_pct:.0f}% of retraining buffer ({filtered_str} filtered by Trust Gate); deviates {divergence_m:.0f}m from Tier-1 Anchor."
         )
     return (
         f"[{window_tag}] Combined poisoning: Tier-2 Fast Feed has {staleness_min:.1f} min staleness and "
-        f"{corrupted_pct:.0f}% corrupted records, pulling unmitigated t+15 prediction {divergence_m:.0f}m "
+        f"{corrupted_pct:.0f}% corrupted records ({filtered_str} filtered by Trust Gate), pulling unmitigated t+15 prediction {divergence_m:.0f}m "
         "outside Thimble Shoal inbound channel."
     )
 

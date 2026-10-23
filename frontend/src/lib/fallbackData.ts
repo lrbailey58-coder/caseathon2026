@@ -241,16 +241,16 @@ export function buildFallbackScenario(
 
   let explanation = ''
   if (isTug) {
-    explanation = `[W${window} // FAILURE MODE] TUG CAPE HENRY (MMSI 367004890) executes a legitimate high-G emergency escort turn in Norfolk channel (COG delta = 64.2°/min > 45°/min gate threshold). Kinematic + Tier-1 Anchor Trust Gate falsely flags 82% of valid high-frequency Tier-2 turn pings as 'Low-Quality / Sensor Spike', causing the mitigated trajectory to lag ${divergenceM.toFixed(0)}m along the pre-turn anchor vector until Watch Officer manual waypoint verification.`
+    explanation = `[W${window} // FAILURE MODE] TUG CAPE HENRY (MMSI 367004890) executes a legitimate high-G emergency escort turn in Norfolk channel (COG delta = 64.2°/min > 45°/min gate threshold). Kinematic + Tier-1 Anchor Trust Gate falsely flags 82.4% of valid high-frequency Tier-2 turn pings as 'Low-Quality / Sensor Spike', causing the mitigated trajectory to lag ${divergenceM.toFixed(0)}m along the pre-turn anchor vector until Watch Officer manual waypoint verification.`
   } else if (condition === 'NOMINAL') {
     explanation =
-      'Tier-2 commercial stream aligns within 45m of delayed Tier-1 USCG coastal anchor. Kinematic velocity and heading deltas remain within nominal Norfolk channel bounds.'
+      `Tier-2 commercial stream aligns within 45m of delayed Tier-1 USCG coastal anchor (${table.discarded_pct[wIdx].toFixed(1)}% filtered). Kinematic velocity and heading deltas remain within nominal Norfolk channel bounds.`
   } else if (condition === 'STALE') {
-    explanation = `Tier-2 Fast Feed repeats cached vessel coordinates (avg age ${stalenessMin.toFixed(1)} min) with fresh timestamps, deviating ${divergenceM.toFixed(0)}m from Tier-1 USCG Anchor trajectory.`
+    explanation = `Tier-2 Fast Feed repeats cached vessel coordinates (avg age ${stalenessMin.toFixed(1)} min) with fresh timestamps, deviating ${divergenceM.toFixed(0)}m from Tier-1 USCG Anchor trajectory; Trust Gate filters ${table.discarded_pct[wIdx].toFixed(1)}% of Tier-2 records.`
   } else if (condition === 'LOW_QUALITY') {
-    explanation = `Tier-2 Fast Feed exhibits severe GPS multipath jitter and SOG/COG spikes across ${corruptedPct.toFixed(0)}% of retraining buffer; deviates ${divergenceM.toFixed(0)}m from Tier-1 Anchor.`
+    explanation = `Tier-2 Fast Feed exhibits severe GPS multipath jitter and SOG/COG spikes across ${corruptedPct.toFixed(0)}% of retraining buffer (${table.discarded_pct[wIdx].toFixed(1)}% filtered by Trust Gate); deviates ${divergenceM.toFixed(0)}m from Tier-1 Anchor.`
   } else {
-    explanation = `Combined poisoning: Tier-2 Fast Feed has ${stalenessMin.toFixed(1)} min staleness and ${corruptedPct.toFixed(0)}% corrupted records, pulling unmitigated t+15 prediction ${divergenceM.toFixed(0)}m outside Thimble Shoal inbound channel.`
+    explanation = `Combined poisoning: Tier-2 Fast Feed has ${stalenessMin.toFixed(1)} min staleness and ${corruptedPct.toFixed(0)}% corrupted records (${table.discarded_pct[wIdx].toFixed(1)}% filtered by Trust Gate), pulling unmitigated t+15 prediction ${divergenceM.toFixed(0)}m outside Thimble Shoal inbound channel.`
   }
 
   const displacementMae = isTug

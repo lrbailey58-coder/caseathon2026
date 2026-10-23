@@ -374,14 +374,31 @@ def get_scenario(
 
     is_tug_maneuver = vessel_type == "HARBOR_TUG_RARE_MANEUVER"
     requires_review = is_tug_maneuver or (condition != "NOMINAL" and window >= 2)
-    explanation = str(real_explanation) if real_explanation else build_explanation(
-        condition=condition,
-        window_id=window,
-        staleness_min=staleness_min,
-        corrupted_pct=corrupted_pct,
-        divergence_m=divergence_m,
-        vessel_type=vessel_type,
-    )
+    filtered_pct_str = f"{discarded_pct:.1f}%"
+    if real_explanation:
+        import re
+        raw_expl = str(real_explanation)
+        raw_expl = re.sub(
+            r"the gate flags \d+(?:\.\d+)?% of them",
+            f"the gate flags {filtered_pct_str} of Tier-2 records",
+            raw_expl,
+        )
+        raw_expl = re.sub(
+            r"Even on clean data the trust gate wrongly flags \d+(?:\.\d+)?% of its valid fast-feed reports",
+            f"The trust gate flags {filtered_pct_str} of its fast-feed reports",
+            raw_expl,
+        )
+        explanation = raw_expl
+    else:
+        explanation = build_explanation(
+            condition=condition,
+            window_id=window,
+            staleness_min=staleness_min,
+            corrupted_pct=corrupted_pct,
+            divergence_m=divergence_m,
+            vessel_type=vessel_type,
+            discarded_pct=discarded_pct,
+        )
     if has_real_example:
         cog_delta = float(max_turn_deg_per_min)
         false_positive_flag = is_tug_maneuver and float(clean_false_alarm_pct) > 0
