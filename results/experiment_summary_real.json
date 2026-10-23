@@ -352,7 +352,7 @@
   "sources": [
     "results/rolling_real.json",
     "results/gate_grading_real.json",
-    "models/rolling_*_real.joblib"
+    "models/rolling_*_real_w6.joblib"
   ],
-  "created_utc": "2026-10-22T22:48:25Z"
+  "created_utc": "2026-10-23T00:35:08Z"
 }

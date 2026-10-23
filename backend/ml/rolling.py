@@ -51,6 +51,11 @@ TEST_WINDOWS = [2, 3, 4, 5, 6]
 ANCHOR_DELAY_MIN = 45  # the slow, accurate feed arrives 30-60 min late (Architecture.md)
 
 
+def model_name(tag: str, condition: str, source: str, test_window: int) -> str:
+    """File name (without .joblib) of a saved step model, e.g. rolling_gated_combined_real_w6."""
+    return f"rolling_{tag}_{condition.lower()}_{source}_w{test_window}"
+
+
 def training_buffer(pings: pd.DataFrame, test_window: int, retrain_at: pd.Timestamp) -> pd.DataFrame:
     """Everything that had ARRIVED by the moment of retraining."""
     earlier = (pings["window_id"] < test_window) & (pings["timestamp"] < retrain_at)
@@ -129,13 +134,13 @@ def run_rolling(conditions: list[str], seed: int = 42, source: str = "real") -> 
                 print(f"  {condition:12} gate {gate} train W1-W{test_w - 1} ({len(train):>7,} rows) -> test W{test_w}:"
                       f" {ai['displacement_mae_m']:6.0f} m avg | discarded {rows[-1]['data_discarded_pct']:5.1f}%")
 
-                if test_w == TEST_WINDOWS[-1]:  # keep the final W1-W5 models for the app
-                    tag = "gated" if mitigated else "unmitigated"
-                    bundle = {**models, "uncertainty": range_models} if mitigated else models
-                    save_models(bundle, f"rolling_{tag}_{condition.lower()}_{source}", info={
-                        "condition": condition, "mitigated": mitigated, "train_windows": "W1-W5",
-                        "source": source, "seed": seed, "gate_limits": limits,
-                        "safety_radius_m": SAFETY_RADIUS_M if mitigated else None})
+                # Save every step's models (used by summary.py, backfire.py, export_dashboard.py).
+                tag = "gated" if mitigated else "unmitigated"
+                bundle = {**models, "uncertainty": range_models} if mitigated else models
+                save_models(bundle, model_name(tag, condition, source, test_w), info={
+                    "condition": condition, "mitigated": mitigated, "train_windows": f"W1-W{test_w - 1}",
+                    "test_window": test_w, "source": source, "seed": seed, "gate_limits": limits,
+                    "safety_radius_m": SAFETY_RADIUS_M if mitigated else None})
         print(f"  {condition} done in {time.perf_counter() - t0:.0f} s")
 
     return {
@@ -223,7 +228,7 @@ def main() -> None:
     out = REPO_ROOT / "results" / "rolling_real.json"
     out.write_text(json.dumps(result, indent=2))
     print_tables(result)
-    print(f"\nSaved: {out.relative_to(REPO_ROOT)} (+ final W1-W5 models in models/)")
+    print(f"\nSaved: {out.relative_to(REPO_ROOT)} (+ every step's models in models/)")
 
 
 if __name__ == "__main__":

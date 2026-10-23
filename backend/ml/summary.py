@@ -30,6 +30,7 @@ import pandas as pd
 from backend.ml.data import CONDITIONS, REPO_ROOT, load_pings
 from backend.ml.features import make_dataset
 from backend.ml.model_store import MODELS_DIR, load_models
+from backend.ml.rolling import model_name
 from backend.ml.train_baseline import errors_m, predict_offsets
 
 RESULTS = REPO_ROOT / "results"
@@ -52,7 +53,7 @@ def w6_errors() -> tuple[pd.DataFrame, dict[str, np.ndarray]]:
     errs = {}
     for cond in CONDITIONS:
         for tag in ("unmitigated", "gated"):
-            bundle = load_models(MODELS_DIR / f"rolling_{tag}_{cond.lower()}_real.joblib")
+            bundle = load_models(MODELS_DIR / f"{model_name(tag, cond, 'real', FINAL_WINDOW)}.joblib")
             errs[f"{cond}|{tag == 'gated'}"] = errors_m(test, *predict_offsets(bundle["models"], test))
     return test, errs
 
@@ -150,7 +151,7 @@ def build() -> dict:
             "Single training run; LightGBM has no randomness here, so variability comes from which voyages were tested.",
             "Tanker numbers are omitted: W6 has only 3 tanker voyages.",
         ],
-        "sources": ["results/rolling_real.json", "results/gate_grading_real.json", "models/rolling_*_real.joblib"],
+        "sources": ["results/rolling_real.json", "results/gate_grading_real.json", "models/rolling_*_real_w6.joblib"],
         "created_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
 
