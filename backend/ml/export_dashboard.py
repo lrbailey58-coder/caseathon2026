@@ -142,31 +142,63 @@ def thin(idx: np.ndarray, k: int = MAX_TRACK_POINTS) -> np.ndarray:
     return idx if len(idx) <= k else idx[np.unique(np.linspace(0, len(idx) - 1, k).round().astype(int))]
 
 
+def _segs_intersect(p1: tuple[float, float], p2: tuple[float, float],
+                    p3: tuple[float, float], p4: tuple[float, float]) -> bool:
+    def ccw(a: tuple[float, float], b: tuple[float, float], c: tuple[float, float]) -> bool:
+        return (c[1] - a[1]) * (b[0] - a[0]) > (b[1] - a[1]) * (c[0] - a[0])
+    return ccw(p1, p3, p4) != ccw(p2, p3, p4) and ccw(p1, p2, p3) != ccw(p1, p2, p4)
+
+
+def _prune_polygon_loops(pts: list[tuple[float, float]]) -> list[tuple[float, float]]:
+    """Remove any self-crossing loops in a closed polygon ring so it is strictly simple."""
+    out = list(pts)
+    changed = True
+    while changed and len(out) >= 4:
+        changed = False
+        m = len(out)
+        for i in range(m):
+            a, b = out[i], out[(i + 1) % m]
+            for j in range(i + 2, m):
+                if i == 0 and j == m - 1:
+                    continue
+                c, d = out[j], out[(j + 1) % m]
+                if _segs_intersect(a, b, c, d):
+                    arc1_len = j - i
+                    arc2_len = m - arc1_len
+                    out = out[:i + 1] + out[j + 1:] if arc1_len <= arc2_len else out[i + 1:j + 1]
+                    changed = True
+                    break
+            if changed:
+                break
+    return out
+
+
 def band_polygon(lat: np.ndarray, lon: np.ndarray, radius_m: np.ndarray) -> list[list[float]]:
-    """A band around a track: each point pushed left and right by its radius, as one polygon."""
+    """A smooth, non-crossing band around a track: each point pushed left and right by its radius."""
     n = len(lat)
     if n < 2:
         return []
-    i_prev, i_next = np.maximum(np.arange(n) - 1, 0), np.minimum(np.arange(n) + 1, n - 1)
-    d_north = (lat[i_next] - lat[i_prev]) * 111_195.0
-    d_east = (lon[i_next] - lon[i_prev]) * 111_195.0 * np.cos(np.radians(lat))
+    if n >= 5:
+        k = np.array([0.15, 0.2, 0.3, 0.2, 0.15])
+        c_lat = np.convolve(np.pad(lat, 2, mode="edge"), k, mode="valid")
+        c_lon = np.convolve(np.pad(lon, 2, mode="edge"), k, mode="valid")
+        c_lat[0], c_lon[0] = lat[0], lon[0]
+        c_lat[-1], c_lon[-1] = lat[-1], lon[-1]
+    else:
+        c_lat, c_lon = lat, lon
+
+    step = min(3, n - 1)
+    i_prev, i_next = np.maximum(np.arange(n) - step, 0), np.minimum(np.arange(n) + step, n - 1)
+    d_north = (c_lat[i_next] - c_lat[i_prev]) * 111_195.0
+    d_east = (c_lon[i_next] - c_lon[i_prev]) * 111_195.0 * np.cos(np.radians(c_lat))
     norm = np.hypot(d_north, d_east)
     norm[norm == 0] = 1.0
     left_n, left_e = -d_east / norm, d_north / norm  # unit vector to the left of travel
-    l_lat, l_lon = offset_m_to_latlon(lat, lon, left_n * radius_m, left_e * radius_m)
-    r_lat, r_lon = offset_m_to_latlon(lat, lon, -left_n * radius_m, -left_e * radius_m)
-    pts = list(zip(l_lat, l_lon)) + list(zip(r_lat[::-1], r_lon[::-1]))
+    r_smooth = np.convolve(np.pad(radius_m, 1, mode="edge"), [0.25, 0.5, 0.25], mode="valid")
+    l_lat, l_lon = offset_m_to_latlon(c_lat, c_lon, left_n * r_smooth, left_e * r_smooth)
+    r_lat, r_lon = offset_m_to_latlon(c_lat, c_lon, -left_n * r_smooth, -left_e * r_smooth)
+    pts = _prune_polygon_loops(list(zip(l_lat, l_lon)) + list(zip(r_lat[::-1], r_lon[::-1])))
     return [[round(float(a), 6), round(float(b), 6)] for a, b in pts]
-
-
-def _max_turn_deg(lat: np.ndarray, lon: np.ndarray) -> float:
-    """Largest change of direction (degrees) between consecutive segments of a track."""
-    north, east = (np.diff(lat) * 111_195.0), (np.diff(lon) * 111_195.0 * np.cos(np.radians(lat[1:])))
-    keep = np.hypot(north, east) > 1.0  # ignore repeated points
-    heading = np.degrees(np.arctan2(east[keep], north[keep]))
-    if heading.size < 2:
-        return 0.0
-    return float(np.max(np.abs((np.diff(heading) + 180) % 360 - 180)))
 
 
 def _convex_hull(points: np.ndarray) -> np.ndarray:
@@ -187,16 +219,16 @@ def _convex_hull(points: np.ndarray) -> np.ndarray:
     return np.array(lower[:-1] + upper[:-1])
 
 
-def uncertainty_outline(lat: np.ndarray, lon: np.ndarray, radius_m: np.ndarray) -> list[list[float]]:
+def uncertainty_outline(lat: np.ndarray, lon: np.ndarray, radius_m: np.ndarray,
+                        preset: str = "CARGO_CONTAINER") -> list[list[float]]:
     """The uncertainty area around a predicted track, as one simple (non-crossing) polygon.
 
-    Smooth tracks get a band (each point pushed left and right by its radius). A band
-    folds over itself where a track turns sharply, so tracks with a turn > 60 degrees get
-    the outline around all the uncertainty circles instead (convex hull).
+    Cargo transit tracks follow a curved band along the channel. Harbor tug maneuvers stay in a
+    tight harbor basin (radius > track length), so they use the outline around their uncertainty circles.
     """
     if len(lat) < 2:
         return []
-    if _max_turn_deg(lat, lon) <= 60.0:
+    if preset != "HARBOR_TUG_RARE_MANEUVER":
         return band_polygon(lat, lon, radius_m)
     lat0, lon0 = float(np.mean(lat)), float(np.mean(lon))
     north = (lat - lat0) * 111_195.0
@@ -396,7 +428,7 @@ def build() -> dict:
                         "ground_truth_json": track(ex["target_lat"], ex["target_lon"]),
                         "unmitigated_pred_json": track(off_lat, off_lon),
                         "mitigated_pred_json": track(on_lat, on_lon),
-                        "uncertainty_poly_json": uncertainty_outline(on_lat, on_lon, radius_ex) if mitigated else [],
+                        "uncertainty_poly_json": uncertainty_outline(on_lat, on_lon, radius_ex, preset) if mitigated else [],
                         "tier1_divergence_m": view[0],
                         "staleness_min": stale[(cond, w)][1],
                         "trust_score": view[1],
