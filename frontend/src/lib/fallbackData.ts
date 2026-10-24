@@ -67,44 +67,44 @@ const ERROR_PROGRESSION: Record<
   }
 > = {
   NOMINAL: {
-    unmitigated_mae: [42.0, 44.5, 43.8, 45.2, 46.1, 47.0],
-    mitigated_mae: [41.5, 42.8, 42.1, 43.0, 43.6, 44.2],
-    tail_95_unmitigated: [88.0, 92.0, 91.0, 94.5, 96.0, 98.0],
-    tail_95_mitigated: [85.0, 88.0, 87.5, 89.0, 90.5, 91.5],
-    corrupted_vol_pct: [2.0, 2.5, 2.2, 2.8, 3.0, 3.1],
-    staleness_min: [1.2, 1.3, 1.2, 1.4, 1.4, 1.5],
-    discarded_pct: [1.8, 2.1, 2.0, 2.4, 2.6, 2.8],
-    deferred_pct: [2.0, 2.0, 2.5, 2.5, 3.0, 3.0],
+    unmitigated_mae: [604.4, 641.7, 653.6, 598.5, 664.6, 667.2],
+    mitigated_mae: [604.4, 644.3, 653.9, 601.8, 669.5, 670.8],
+    tail_95_unmitigated: [2109.1, 2305.3, 2331.0, 2183.1, 2421.6, 2454.3],
+    tail_95_mitigated: [2109.1, 2306.0, 2340.9, 2207.6, 2463.7, 2487.0],
+    corrupted_vol_pct: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    staleness_min: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    discarded_pct: [0.0, 1.91, 1.75, 1.82, 1.76, 1.86],
+    deferred_pct: [0.0, 15.66, 17.37, 14.47, 18.18, 18.79],
   },
   STALE: {
-    unmitigated_mae: [43.0, 118.0, 215.0, 342.0, 468.0, 540.0],
-    mitigated_mae: [42.0, 56.0, 68.0, 79.0, 88.0, 94.0],
-    tail_95_unmitigated: [90.0, 245.0, 430.0, 685.0, 910.0, 1060.0],
-    tail_95_mitigated: [86.0, 115.0, 138.0, 162.0, 179.0, 192.0],
-    corrupted_vol_pct: [4.0, 18.0, 34.0, 51.0, 66.0, 72.0],
-    staleness_min: [1.5, 6.8, 12.4, 17.5, 22.8, 25.4],
-    discarded_pct: [3.2, 16.5, 31.0, 47.5, 61.2, 67.8],
-    deferred_pct: [2.5, 6.0, 10.5, 14.0, 18.5, 21.0],
+    unmitigated_mae: [604.4, 641.7, 654.6, 609.6, 687.1, 690.0],
+    mitigated_mae: [604.4, 644.3, 654.3, 603.3, 667.7, 669.3],
+    tail_95_unmitigated: [2109.1, 2305.3, 2297.4, 2174.1, 2381.4, 2378.6],
+    tail_95_mitigated: [2109.1, 2306.0, 2347.0, 2197.0, 2445.4, 2460.0],
+    corrupted_vol_pct: [0.0, 0.0, 13.32, 26.49, 44.73, 61.15],
+    staleness_min: [0.0, 1.83, 4.07, 6.96, 9.44, 9.45],
+    discarded_pct: [0.0, 1.91, 6.53, 11.23, 16.55, 22.6],
+    deferred_pct: [0.0, 15.66, 17.61, 14.78, 18.68, 18.82],
   },
   LOW_QUALITY: {
-    unmitigated_mae: [44.0, 134.0, 248.0, 389.0, 512.0, 595.0],
-    mitigated_mae: [42.5, 59.0, 74.0, 86.0, 96.0, 105.0],
-    tail_95_unmitigated: [92.0, 290.0, 520.0, 790.0, 1045.0, 1210.0],
-    tail_95_mitigated: [88.0, 124.0, 152.0, 178.0, 198.0, 215.0],
-    corrupted_vol_pct: [5.0, 20.0, 38.0, 55.0, 68.0, 75.0],
-    staleness_min: [1.4, 2.1, 2.8, 3.4, 3.9, 4.2],
-    discarded_pct: [4.1, 18.2, 35.4, 51.0, 63.8, 70.2],
-    deferred_pct: [3.0, 7.5, 12.0, 16.5, 20.0, 23.5],
+    unmitigated_mae: [604.4, 641.7, 661.8, 614.8, 678.2, 682.9],
+    mitigated_mae: [604.4, 644.3, 651.2, 602.0, 666.4, 667.4],
+    tail_95_unmitigated: [2109.1, 2305.3, 2360.9, 2252.0, 2458.8, 2468.0],
+    tail_95_mitigated: [2109.1, 2306.0, 2335.7, 2201.5, 2442.7, 2444.1],
+    corrupted_vol_pct: [0.0, 0.0, 100.0, 100.0, 100.0, 100.0],
+    staleness_min: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    discarded_pct: [0.0, 1.91, 7.31, 9.35, 11.29, 16.41],
+    deferred_pct: [0.0, 15.66, 17.53, 14.49, 18.83, 19.6],
   },
   COMBINED: {
-    unmitigated_mae: [45.0, 165.0, 310.0, 495.0, 670.0, 785.0],
-    mitigated_mae: [43.0, 64.0, 82.0, 98.0, 112.0, 124.0],
-    tail_95_unmitigated: [95.0, 355.0, 640.0, 980.0, 1320.0, 1540.0],
-    tail_95_mitigated: [89.0, 134.0, 170.0, 204.0, 230.0, 252.0],
-    corrupted_vol_pct: [6.0, 24.0, 44.0, 62.0, 76.0, 82.0],
-    staleness_min: [1.6, 8.2, 14.8, 19.6, 24.5, 27.8],
-    discarded_pct: [5.0, 21.8, 40.5, 57.4, 71.0, 76.5],
-    deferred_pct: [3.5, 9.0, 15.0, 21.5, 26.0, 29.5],
+    unmitigated_mae: [604.4, 641.7, 661.4, 619.8, 699.6, 707.4],
+    mitigated_mae: [604.4, 644.3, 655.4, 603.1, 665.6, 665.2],
+    tail_95_unmitigated: [2109.1, 2305.3, 2327.3, 2206.4, 2421.2, 2414.7],
+    tail_95_mitigated: [2109.1, 2306.0, 2342.8, 2198.3, 2425.2, 2428.6],
+    corrupted_vol_pct: [0.0, 0.0, 100.0, 100.0, 100.0, 100.0],
+    staleness_min: [0.0, 1.83, 4.07, 6.98, 9.44, 9.45],
+    discarded_pct: [0.0, 1.91, 11.36, 17.34, 23.43, 30.92],
+    deferred_pct: [0.0, 15.66, 17.62, 14.91, 18.61, 18.93],
   },
 }
 
@@ -225,7 +225,7 @@ export function buildFallbackScenario(
   })
 
   const uncertaintyPolygon: LatLon[] = [
-    gtTrack[2],
+    gtTrack[0],
     ...upperBound,
     ...[...lowerBound].reverse(),
   ]
@@ -255,16 +255,16 @@ export function buildFallbackScenario(
 
   const displacementMae = isTug
     ? mitigated
-      ? Number((268 + wIdx * 14.5).toFixed(1))
-      : Number((92 + (condition === 'NOMINAL' ? 0 : wIdx * 44)).toFixed(1))
+      ? 1065.9
+      : 996.5
     : mitigated
       ? table.mitigated_mae[wIdx]
       : table.unmitigated_mae[wIdx]
 
   const tail95Error = isTug
     ? mitigated
-      ? Number((495 + wIdx * 28).toFixed(1))
-      : Number((185 + (condition === 'NOMINAL' ? 0 : wIdx * 86)).toFixed(1))
+      ? 3030.0
+      : 2784.2
     : mitigated
       ? table.tail_95_mitigated[wIdx]
       : table.tail_95_unmitigated[wIdx]
@@ -282,9 +282,9 @@ export function buildFallbackScenario(
     metrics: {
       displacement_mae_m: displacementMae,
       tail_95_error_m: tail95Error,
-      data_discarded_pct: isTug ? (mitigated ? 82.4 : 0) : mitigated ? table.discarded_pct[wIdx] : 0,
-      decisions_deferred_pct: isTug ? (mitigated ? 100.0 : 0) : mitigated ? table.deferred_pct[wIdx] : 0,
-      model_compute_latency_ms: Number((11.8 + (mitigated ? 1.6 : 0) + 0.2 * wIdx).toFixed(1)),
+      data_discarded_pct: isTug ? (mitigated ? 46.4 : 0) : mitigated ? table.discarded_pct[wIdx] : 0,
+      decisions_deferred_pct: isTug ? (mitigated ? 54.5 : 0) : mitigated ? table.deferred_pct[wIdx] : 0,
+      model_compute_latency_ms: mitigated ? 13.7 : 6.3,
       avg_human_review_s: 8.4,
     },
     timeline_series: [0, 1, 2, 3, 4, 5].map((i) => ({
@@ -295,15 +295,16 @@ export function buildFallbackScenario(
       avg_data_staleness_min: table.staleness_min[i],
     })),
     hitl_alert: {
-      vessel_name: isTug ? 'TUG CAPE HENRY' : 'MV VIRGINIA TRADER',
-      mmsi: isTug ? '367004890' : '367591240',
+      vessel_name: isTug ? 'KENDALL J HEBERT' : 'GRANDE GUINEA',
+      mmsi: isTug ? '367567990' : '247293300',
       vessel_type: vesselType,
       tier1_vs_tier2_divergence_m: divergenceM,
       staleness_minutes: stalenessMin,
       trust_score: trustScore,
       requires_human_review: isTug || (condition !== 'NOMINAL' && window >= 2),
       explanation,
-      cog_delta_deg_per_min: isTug ? 64.2 : 4.2,
+      cog_delta_deg_per_min: isTug ? 112.2 : 18.5,
+      clean_false_alarm_pct: isTug ? 16.1 : 0.0,
       false_positive_gate_flag: isTug,
     },
   }
@@ -336,11 +337,13 @@ export function buildFallbackMatrixSummary(window: number = 6): MatrixSummaryDat
   const wIdx = Math.max(0, Math.min(5, window - 1))
   const conditions: ConditionType[] = ['NOMINAL', 'STALE', 'LOW_QUALITY', 'COMBINED']
   const runs: MatrixRunEntry[] = []
+  const cleanUnmitMae = ERROR_PROGRESSION.NOMINAL.unmitigated_mae[wIdx]
 
   let runId = 1
   for (const cond of conditions) {
     const table = ERROR_PROGRESSION[cond]
     const unmitMae = table.unmitigated_mae[wIdx]
+    const damage = unmitMae - cleanUnmitMae
 
     for (const isMitigated of [false, true]) {
       const mae = isMitigated ? table.mitigated_mae[wIdx] : unmitMae
@@ -350,10 +353,12 @@ export function buildFallbackMatrixSummary(window: number = 6): MatrixSummaryDat
       const discarded = isMitigated ? table.discarded_pct[wIdx] : 0
       const deferred = isMitigated ? table.deferred_pct[wIdx] : 0
       const recoveryGain =
-        isMitigated && unmitMae > 0
-          ? Number((((unmitMae - mae) / unmitMae) * 100).toFixed(1))
-          : 0
-      const latencyMs = Number((11.8 + (isMitigated ? 1.6 : 0) + 0.2 * wIdx).toFixed(1))
+        isMitigated && cond !== 'NOMINAL' && damage > 1e-9
+          ? Number((((unmitMae - mae) / damage) * 100).toFixed(1))
+          : isMitigated && unmitMae > 0
+            ? Number((((unmitMae - mae) / unmitMae) * 100).toFixed(1))
+            : 0
+      const latencyMs = isMitigated ? 13.7 : 6.3
 
       runs.push({
         run_id: runId++,
@@ -395,17 +400,17 @@ export function buildFallbackExportBundle(hitlLogs: HitlLogsData): Record<string
     dataset_manifest_metadata: {
       dataset_name: 'MarineCadastre AIS 2025 (Chesapeake Bay & Norfolk Corridor)',
       source_url: 'https://noaaocm.blob.core.windows.net/ais/csv2/csv2025',
-      date_range_utc: ['2025-09-01 00:00:00', '2025-09-12 23:59:59'],
+      date_range_utc: ['2025-09-01 00:00:00', '2025-10-12 23:59:54'],
       spatial_bounding_box: { lat_min: 36.8, lat_max: 37.3, lon_min: -76.6, lon_max: -75.8 },
       vessel_cohorts: ['Tug/Towing (31, 32, 52)', 'Cargo (70-79)', 'Tanker (80-89)'],
       chronological_windows: 6,
-      total_reference_pings: 190149,
-      unique_voyages: 2841,
-      unique_vessels: 291,
+      total_reference_pings: 671747,
+      unique_voyages: 9680,
+      unique_vessels: 630,
       license: 'Public Domain (U.S. Government NOAA/BOEM work)',
     },
     modification_log_summary: {
-      total_rows: 190149,
+      total_rows: 671747,
       settings: {
         random_seed: 42,
         tier_rule: 'every 5th ping of each voyage -> TIER1_ANCHOR; rest -> TIER2_FAST',
@@ -424,11 +429,12 @@ export function buildFallbackExportBundle(hitlLogs: HitlLogsData): Record<string
     },
     failure_mode_boundary_analysis: {
       preset_id: 'HARBOR_TUG_RARE_MANEUVER',
-      vessel: 'TUG CAPE HENRY (MMSI 367004890)',
-      maneuver:
-        'High-G legitimate emergency escort turn in Norfolk channel (COG delta = 64.2 deg/min > 45 deg/min threshold)',
+      source: 'real AIS voyage (W6, clean data, so every gate flag is a false alarm)',
+      vessel: 'JANE MCALLISTER (MMSI 368312320, voyage 368312320_196)',
+      max_turn_deg_per_min: 104.7,
+      clean_false_alarm_pct: 20.3,
       adverse_tradeoff:
-        'Kinematic + Tier-1 Anchor Trust Gate falsely flags 82.4% of valid high-frequency Tier-2 turn updates as Low-Quality / Sensor Spikes, causing the mitigated model to lag along the pre-turn anchor tangent until Watch Officer manual waypoint verification.',
+        '[W6 (Unseen Test Period) // FAILURE MODE] JANE MCALLISTER turns at up to 105 deg/min. Even on clean data the trust gate wrongly flags 20% of its valid fast-feed reports, because it compares them to a straight line between trusted reports ~6 min apart.',
     },
   }
 }

@@ -303,6 +303,21 @@ def get_scenario(
         unmit_track = _parse_latlon_json(str(traj_row[3]))
         mit_track = _parse_latlon_json(str(traj_row[4]))
         cone_poly = _parse_latlon_json(str(traj_row[5]))
+        if not cone_poly:
+            # When mitigated=False in real export, uncertainty_poly_json is [].
+            # Fetch the calibrated 90% uncertainty polygon from the mitigated row so the map
+            # can always display the uncertainty boundary / operator-verified corridor.
+            mit_cone_row = conn.execute(
+                """
+                SELECT uncertainty_poly_json
+                FROM vessel_trajectories
+                WHERE condition = ? AND mitigated = TRUE AND window_id = ? AND vessel_type = ?
+                LIMIT 1
+                """,
+                (condition, window, vessel_type),
+            ).fetchone()
+            if mit_cone_row and mit_cone_row[0]:
+                cone_poly = _parse_latlon_json(str(mit_cone_row[0]))
         divergence_m = float(traj_row[6])
         traj_staleness_min = float(traj_row[7])
         trust_score = float(traj_row[8])
@@ -374,21 +389,8 @@ def get_scenario(
 
     is_tug_maneuver = vessel_type == "HARBOR_TUG_RARE_MANEUVER"
     requires_review = is_tug_maneuver or (condition != "NOMINAL" and window >= 2)
-    filtered_pct_str = f"{discarded_pct:.1f}%"
     if real_explanation:
-        import re
-        raw_expl = str(real_explanation)
-        raw_expl = re.sub(
-            r"the gate flags \d+(?:\.\d+)?% of them",
-            f"the gate flags {filtered_pct_str} of Tier-2 records",
-            raw_expl,
-        )
-        raw_expl = re.sub(
-            r"Even on clean data the trust gate wrongly flags \d+(?:\.\d+)?% of its valid fast-feed reports",
-            f"The trust gate flags {filtered_pct_str} of its fast-feed reports",
-            raw_expl,
-        )
-        explanation = raw_expl
+        explanation = str(real_explanation)
     else:
         explanation = build_explanation(
             condition=condition,
@@ -570,7 +572,7 @@ def post_hitl_override(payload: HitlOverrideRequest) -> HitlOverrideResponse:
 
         vessel_row = conn.execute(
             """
-            SELECT vessel_name
+            SELECT vessel_name, vessel_type, max_turn_deg_per_min
             FROM vessel_trajectories
             WHERE mmsi = ?
             LIMIT 1
@@ -580,13 +582,18 @@ def post_hitl_override(payload: HitlOverrideRequest) -> HitlOverrideResponse:
         vessel_name = str(vessel_row[0]) if vessel_row else (
             "TUG CAPE HENRY" if payload.mmsi == "367004890" else "MV VIRGINIA TRADER"
         )
+        is_tug_vessel = (
+            (vessel_row is not None and str(vessel_row[1]) == "HARBOR_TUG_RARE_MANEUVER")
+            or payload.mmsi == "367004890"
+        )
+        max_turn_val = float(vessel_row[2]) if (vessel_row and vessel_row[2] is not None) else 64.2
 
         default_action_note = (
             "Deferred to Tier-1 USCG Coastal Anchor Kinematic Extrapolation"
             if payload.action == "DEFER_TO_ANCHOR_KINEMATIC"
             else (
-                "Watch Officer Manual Waypoint Override: Verified legitimate high-G escort turn (COG delta > 45 deg/min)"
-                if payload.mmsi == "367004890"
+                f"Watch Officer Manual Waypoint Override: Verified legitimate sharp harbor tug turn (COG delta = {max_turn_val:.0f} deg/min)"
+                if is_tug_vessel
                 else "Logged Watch Officer Manual Waypoint / Course Override"
             )
         )

@@ -167,9 +167,9 @@ export function ExperimentMatrixModal({
                     <td
                       className={cn(
                         'py-2.5 px-3 text-right font-bold',
-                        run.displacement_mae_m > 150
+                        run.displacement_mae_m > 680
                           ? 'text-rose-400'
-                          : run.displacement_mae_m > 75
+                          : run.displacement_mae_m > 620
                             ? 'text-amber-300'
                             : 'text-emerald-400',
                       )}
@@ -179,7 +179,7 @@ export function ExperimentMatrixModal({
                     <td
                       className={cn(
                         'py-2.5 px-3 text-right font-semibold',
-                        run.tail_95_error_m > 300 ? 'text-rose-400' : 'text-cyan-300',
+                        run.tail_95_error_m > 2460 ? 'text-rose-400' : 'text-cyan-300',
                       )}
                     >
                       {run.tail_95_error_m.toFixed(0)} m
@@ -267,7 +267,7 @@ export function ExperimentMatrixModal({
 
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-800/80 pt-2 text-[11px] text-slate-300">
             <span>
-              Repeat-Seed Stability (n=5): ±4.1m SD • Offline Train Cost: $0 (Local CPU) • Baseline AIS Reference Uncertainty: ±10m GPS variance
+              Paired Voyage Bootstrap (1,000 resamples, 1,167 W6 voyages): Combined Gate Gain +37.2m to +47.6m (Cargo: +53.2m to +72.9m) • Deterministic LightGBM (seed=42) • Offline Train Cost: $0 (Local CPU)
             </span>
           </div>
         </div>

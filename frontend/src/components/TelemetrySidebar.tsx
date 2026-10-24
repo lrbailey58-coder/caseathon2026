@@ -107,25 +107,7 @@ export function TelemetrySidebar({
     return () => globalThis.clearInterval(timer)
   }, [stopwatchKey])
 
-  const filteredPctLabel = `${metrics.data_discarded_pct.toFixed(1)}%`
   const syncedExplanation = hitl_alert.explanation
-    .replace(/the gate flags \d+(?:\.\d+)?% of them/i, `the gate flags ${filteredPctLabel} of Tier-2 records`)
-    .replace(
-      /(?:Even on clean data )?the trust gate (?:wrongly )?flags \d+(?:\.\d+)?% of its (?:valid )?fast-feed reports/i,
-      `The trust gate flags ${filteredPctLabel} of its fast-feed reports`,
-    )
-    .replace(
-      /Trust Gate falsely flags \d+(?:\.\d+)?% of valid high-frequency Tier-2 turn pings/i,
-      `Trust Gate falsely flags ${filteredPctLabel} of valid high-frequency Tier-2 turn pings`,
-    )
-    .replace(
-      /Trust Gate filters \d+(?:\.\d+)?% of Tier-2 records/i,
-      `Trust Gate filters ${filteredPctLabel} of Tier-2 records`,
-    )
-    .replace(
-      /\(\d+(?:\.\d+)?% filtered(?:\s+by Trust Gate)?\)/i,
-      `(${filteredPctLabel} filtered by Trust Gate)`,
-    )
 
   useEffect(() => {
     if (isTugRareManeuver) {
@@ -180,20 +162,24 @@ export function TelemetrySidebar({
                 className={`mt-0.5 text-lg font-mono font-bold ${
                   operatorVerifiedAction
                     ? 'text-emerald-400'
-                    : metrics.displacement_mae_m > 150
+                    : metrics.displacement_mae_m > 680
                       ? 'text-rose-400'
-                      : metrics.displacement_mae_m > 75
+                      : metrics.displacement_mae_m > 620
                         ? 'text-amber-300'
                         : 'text-emerald-400'
                 }`}
               >
-                {operatorVerifiedAction
-                  ? '38.4'
-                  : metrics.displacement_mae_m.toFixed(1)}{' '}
+                {metrics.displacement_mae_m.toFixed(1)}{' '}
                 <span className="text-xs">m</span>
               </div>
               <div className="text-[10px] text-slate-500 font-mono">
-                {operatorVerifiedAction ? 'Operator-Verified Safe Path' : 't+15m Horizon Error'}
+                {operatorVerifiedAction
+                  ? operatorVerifiedAction === 'MANUAL_COURSE_OVERRIDE'
+                    ? 'Watch Officer Course Override Active'
+                    : 'Tier-1 Anchor Extrapolation Active'
+                  : isTugRareManeuver
+                    ? `Active Tug (${hitl_alert.vessel_name}) MAE`
+                    : 'Fleet t+15m Horizon Error'}
               </div>
             </div>
 
@@ -206,15 +192,19 @@ export function TelemetrySidebar({
                 className={`mt-0.5 text-lg font-mono font-bold ${
                   operatorVerifiedAction
                     ? 'text-emerald-400'
-                    : metrics.tail_95_error_m > 300
+                    : metrics.tail_95_error_m > 2450
                       ? 'text-rose-400'
                       : 'text-cyan-300'
                 }`}
               >
-                {operatorVerifiedAction ? '76' : metrics.tail_95_error_m.toFixed(0)}{' '}
+                {metrics.tail_95_error_m.toFixed(0)}{' '}
                 <span className="text-xs">m</span>
               </div>
-              <div className="text-[10px] text-slate-500 font-mono">Worst-Case Excursion</div>
+              <div className="text-[10px] text-slate-500 font-mono">
+                {operatorVerifiedAction
+                  ? 'Operator-Verified Safe Corridor'
+                  : 'Worst-Case Excursion'}
+              </div>
             </div>
 
             {/* Tier-2 Data Filtered */}
@@ -715,15 +705,15 @@ export function TelemetrySidebar({
               </div>
               <div>
                 <strong className="text-slate-100">Pilot Ownership:</strong>{' '}
-                Maritime Data Steward (Feed Health) &amp; Harbor Ops Lead (Deferral Thresholds)
+                VTS Maritime Telemetry Systems Lead (Port of Virginia Joint Operations)
               </div>
               <div>
                 <strong className="text-rose-300">System Do-Not-Use Boundary:</strong>{' '}
-                Auto-defer all outputs if Tier-1 USCG Anchor uptime &lt; 85%
+                Freeze to W1 baseline if Tier-1 Anchor availability &lt; 98% (or outage &gt; 90m) or clean false alarms &gt; 5%
               </div>
               <div>
                 <strong className="text-cyan-300">Bounded Next Step:</strong>{' '}
-                Vessel-class-aware kinematic thresholds (separating Harbor Tugs from Cargo vessels) at Pilot Gate 1.
+                Turn-Aware Curved-Path Gate (using anchor positions + headings; Owner: ML Lead; Checkpoint: sharp-turn false alarms &lt; 10%).
               </div>
             </div>
           </div>

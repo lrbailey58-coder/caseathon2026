@@ -8,13 +8,94 @@ import {
   ShieldCheck,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { CircleMarker, MapContainer, Polygon, Polyline, TileLayer, Tooltip } from 'react-leaflet'
+import { CircleMarker, MapContainer, Polygon, Polyline, TileLayer, Tooltip, useMap } from 'react-leaflet'
 import { Badge } from '@/components/ui/badge'
 import type { HitlOverrideRequest, LatLon, ScenarioData } from '@/types/maritime'
 
 interface MaritimeMapProps {
   scenario: ScenarioData
   operatorVerifiedAction: HitlOverrideRequest['action'] | null
+  operatorVerifiedSeq?: number
+}
+
+function MapBoundsController({
+  tracks,
+  vesselKey,
+}: {
+  tracks: LatLon[][]
+  vesselKey: string
+}) {
+  const map = useMap()
+
+  useEffect(() => {
+    const pts = tracks.flat().filter((p) => Array.isArray(p) && p.length === 2)
+    if (pts.length === 0) return
+
+    let minLat = Infinity
+    let maxLat = -Infinity
+    let minLon = Infinity
+    let maxLon = -Infinity
+
+    for (const [lat, lon] of pts) {
+      if (lat < minLat) minLat = lat
+      if (lat > maxLat) maxLat = lat
+      if (lon < minLon) minLon = lon
+      if (lon > maxLon) maxLon = lon
+    }
+
+    const latPad = Math.max(0.0025, (maxLat - minLat) * 0.18)
+    const lonPad = Math.max(0.0025, (maxLon - minLon) * 0.18)
+
+    map.flyToBounds(
+      [
+        [minLat - latPad, minLon - lonPad],
+        [maxLat + latPad, maxLon + lonPad],
+      ],
+      {
+        paddingTopLeft: [40, 72],
+        paddingBottomRight: [40, 40],
+        maxZoom: 15,
+        duration: 0.65,
+      },
+    )
+    // Only re-fly when vessel or window changes so toggling Defense ON/OFF doesn't jump camera
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, vesselKey])
+
+  return null
+}
+
+function buildCorridorPolygon(track: LatLon[], radiusM: number): LatLon[] {
+  const n = track.length
+  if (n < 2) return []
+
+  const M_PER_DEG_LAT = 111_195.0
+  const leftSide: LatLon[] = []
+  const rightSide: LatLon[] = []
+
+  for (let i = 0; i < n; i++) {
+    const iPrev = Math.max(0, i - 1)
+    const iNext = Math.min(n - 1, i + 1)
+    const [lat, lon] = track[i]
+    const [latPrev, lonPrev] = track[iPrev]
+    const [latNext, lonNext] = track[iNext]
+
+    const cosLat = Math.cos((lat * Math.PI) / 180.0)
+    const dNorth = (latNext - latPrev) * M_PER_DEG_LAT
+    const dEast = (lonNext - lonPrev) * M_PER_DEG_LAT * cosLat
+    const norm = Math.hypot(dNorth, dEast) || 1.0
+
+    const leftN = (-dEast / norm) * radiusM
+    const leftE = (dNorth / norm) * radiusM
+
+    const dLat = leftN / M_PER_DEG_LAT
+    const dLon = leftE / (M_PER_DEG_LAT * cosLat)
+
+    leftSide.push([Number((lat + dLat).toFixed(6)), Number((lon + dLon).toFixed(6))])
+    rightSide.push([Number((lat - dLat).toFixed(6)), Number((lon - dLon).toFixed(6))])
+  }
+
+  return [...leftSide, ...rightSide.reverse()]
 }
 
 // Norfolk / Thimble Shoal Shipping Channel boundary lines for visual context
@@ -38,7 +119,11 @@ const CHANNEL_SOUTH_BOUNDARY: [number, number][] = [
   [36.984, -76.286],
 ]
 
-export function MaritimeMap({ scenario, operatorVerifiedAction }: MaritimeMapProps) {
+export function MaritimeMap({
+  scenario,
+  operatorVerifiedAction,
+  operatorVerifiedSeq = 0,
+}: MaritimeMapProps) {
   const {
     ground_truth_track,
     unmitigated_prediction_track,
@@ -53,72 +138,76 @@ export function MaritimeMap({ scenario, operatorVerifiedAction }: MaritimeMapPro
 
   const isTugRareManeuver = vessel_type === 'HARBOR_TUG_RARE_MANEUVER'
   const isOperatorVerified = operatorVerifiedAction !== null
+  const isManualOverride = operatorVerifiedAction === 'MANUAL_COURSE_OVERRIDE'
 
-  // Compute Watch Officer corrected safe trajectory when an override is triggered
-  const correctedSafeTrack: LatLon[] = ground_truth_track.map(([gtLat, gtLon], i) => {
-    if (i <= 2) {
+  // Compute Watch Officer override trajectory:
+  // - DEFER_TO_ANCHOR_KINEMATIC: locks onto the Tier-1 Coastal Anchor-Audited trajectory
+  // - MANUAL_COURSE_OVERRIDE: Watch Officer manual waypoint course / turn verification path
+  const manualVerifiedTrack: LatLon[] = ground_truth_track.map(([gtLat, gtLon], i) => {
+    if (i === 0) {
       return [gtLat, gtLon]
     }
-    const progress = (i - 2) / (ground_truth_track.length - 3)
-    const offsetScale = operatorVerifiedAction === 'MANUAL_COURSE_OVERRIDE' ? 0.00025 : 0.00045
+    const progress = i / Math.max(1, ground_truth_track.length - 1)
+    const offsetScale = isTugRareManeuver ? 0.00012 : 0.00022
     return [
       Number((gtLat + offsetScale * progress).toFixed(6)),
       Number((gtLon - offsetScale * 0.8 * progress).toFixed(6)),
     ]
   })
 
+  const targetOverrideTrack: LatLon[] =
+    operatorVerifiedAction === 'MANUAL_COURSE_OVERRIDE'
+      ? manualVerifiedTrack
+      : mitigated_prediction_track
+
+  const animKey = `${window}-${String(vessel_type)}-${String(operatorVerifiedAction)}-${operatorVerifiedSeq}`
+
   // Progressive animation state when Watch Officer triggers an override
   const [animState, setAnimState] = useState<{
-    action: HitlOverrideRequest['action'] | null
+    key: string
     count: number
-  }>({ action: null, count: 3 })
+  }>({ key: '', count: 2 })
 
   useEffect(() => {
     if (!isOperatorVerified) {
       return
     }
+    const totalPts = targetOverrideTrack.length
     const startMs = Date.now()
+    const stepMs = Math.max(25, Math.min(55, Math.floor(900 / Math.max(1, totalPts))))
+
     const interval = globalThis.setInterval(() => {
-      const steps = Math.min(
-        correctedSafeTrack.length,
-        3 + Math.floor((Date.now() - startMs) / 50),
-      )
-      setAnimState({ action: operatorVerifiedAction, count: steps })
-      if (steps >= correctedSafeTrack.length) {
+      const steps = Math.min(totalPts, 2 + Math.floor((Date.now() - startMs) / stepMs))
+      setAnimState({ key: animKey, count: steps })
+      if (steps >= totalPts) {
         globalThis.clearInterval(interval)
       }
-    }, 45)
+    }, 30)
     return () => globalThis.clearInterval(interval)
-  }, [isOperatorVerified, operatorVerifiedAction, correctedSafeTrack.length])
+  }, [isOperatorVerified, animKey, targetOverrideTrack.length])
 
   const animatedPointCount =
-    isOperatorVerified && animState.action === operatorVerifiedAction
-      ? animState.count
-      : 3
+    isOperatorVerified && animState.key === animKey ? animState.count : 2
 
   const activeMitigatedTrack: LatLon[] = isOperatorVerified
-    ? correctedSafeTrack.slice(0, animatedPointCount)
+    ? targetOverrideTrack.slice(0, animatedPointCount)
     : mitigated_prediction_track
 
-  // Narrow calibrated cone around the corrected safe path after Watch Officer verification
+  // Calibrated 2D corridor polygon around the active path after Watch Officer verification
   const activeUncertaintyPolygon: LatLon[] = isOperatorVerified
-    ? (() => {
-        const upper: LatLon[] = []
-        const lower: LatLon[] = []
-        correctedSafeTrack.forEach(([lat, lon], idx) => {
-          if (idx <= 2) return
-          const w = 0.00085
-          upper.push([Number((lat + w).toFixed(6)), lon])
-          lower.push([Number((lat - w).toFixed(6)), lon])
-        })
-        return [correctedSafeTrack[2], ...upper, ...lower.reverse()]
-      })()
+    ? operatorVerifiedAction === 'MANUAL_COURSE_OVERRIDE'
+      ? buildCorridorPolygon(targetOverrideTrack, isTugRareManeuver ? 85 : 220)
+      : uncertainty_polygon.length > 0
+        ? uncertainty_polygon
+        : buildCorridorPolygon(targetOverrideTrack, isTugRareManeuver ? 140 : 320)
     : uncertainty_polygon
 
-  const vesselCurrentPos = ground_truth_track[2]
-  const gtEndPos = ground_truth_track[ground_truth_track.length - 1]
-  const unmitEndPos = unmitigated_prediction_track[unmitigated_prediction_track.length - 1]
+  const vesselCurrentPos = ground_truth_track[0] ?? [36.968, -76.12]
+  const gtEndPos = ground_truth_track[ground_truth_track.length - 1] ?? vesselCurrentPos
+  const unmitEndPos =
+    unmitigated_prediction_track[unmitigated_prediction_track.length - 1] ?? gtEndPos
   const mitEndPos = activeMitigatedTrack[activeMitigatedTrack.length - 1] ?? gtEndPos
+  const vesselBoundsKey = `${window}-${String(vessel_type)}-${hitl_alert.mmsi}`
 
   const cartoApiKey = import.meta.env.VITE_CARTO_API_KEY?.trim()
   const cartoTileUrl = cartoApiKey
@@ -202,6 +291,14 @@ export function MaritimeMap({ scenario, operatorVerifiedAction }: MaritimeMapPro
         className="h-full w-full z-0"
         zoomControl={true}
       >
+        <MapBoundsController
+          tracks={[
+            ground_truth_track,
+            unmitigated_prediction_track,
+            mitigated_prediction_track,
+          ]}
+          vesselKey={vesselBoundsKey}
+        />
         <TileLayer
           key={cartoTileUrl}
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
@@ -293,8 +390,8 @@ export function MaritimeMap({ scenario, operatorVerifiedAction }: MaritimeMapPro
           </Tooltip>
         </Polyline>
 
-        {/* When Operator Verified on Tugboat or Poisoned scenario, show ghosted pre-override track for contrast */}
-        {isOperatorVerified && (
+        {/* When Manual Override is active, show ghosted pre-override mitigated track for contrast */}
+        {isOperatorVerified && isManualOverride && (
           <Polyline
             positions={mitigated_prediction_track}
             pathOptions={{
@@ -317,7 +414,9 @@ export function MaritimeMap({ scenario, operatorVerifiedAction }: MaritimeMapPro
           positions={activeMitigatedTrack}
           pathOptions={{
             color: isOperatorVerified
-              ? '#22d3ee'
+              ? isManualOverride
+                ? '#10b981'
+                : '#22d3ee'
               : isTugRareManeuver && mitigated
                 ? '#f59e0b'
                 : '#22d3ee',
@@ -328,7 +427,9 @@ export function MaritimeMap({ scenario, operatorVerifiedAction }: MaritimeMapPro
           <Tooltip sticky>
             <span className="font-mono text-xs">
               {isOperatorVerified
-                ? 'OPERATOR VERIFIED Safe Trajectory (Watch Officer Override)'
+                ? isManualOverride
+                  ? 'OPERATOR VERIFIED Course Override (Watch Officer Waypoint Path)'
+                  : 'OPERATOR VERIFIED Tier-1 Anchor Extrapolation (USCG Coastal Feed)'
                 : isTugRareManeuver
                   ? 'Mitigated Trajectory (Lagging Sharp Turn due to False-Positive Gate Rejection)'
                   : 'Mitigated Anchor-Verified Trajectory (Tier-1 Audited)'}

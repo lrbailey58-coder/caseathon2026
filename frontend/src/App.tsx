@@ -35,6 +35,7 @@ export function App() {
   const [operatorVerified, setOperatorVerified] = useState<{
     key: string
     action: HitlOverrideRequest['action']
+    seq: number
   } | null>(null)
   const [hitlLogs, setHitlLogs] = useState<HitlLogsData>(() => buildFallbackHitlLogs())
 
@@ -47,6 +48,8 @@ export function App() {
   const currentScenarioKey = `${condition}-${String(mitigated)}-${window}-${vesselType}`
   const operatorVerifiedAction =
     operatorVerified?.key === currentScenarioKey ? operatorVerified.action : null
+  const operatorVerifiedSeq =
+    operatorVerified?.key === currentScenarioKey ? operatorVerified.seq : 0
 
   const bumpTimerReset = () => setTimerResetTrigger((n) => n + 1)
 
@@ -225,7 +228,11 @@ export function App() {
     }
 
     // Immediately animate/update active trajectory on the map and badge vessel marker as OPERATOR VERIFIED
-    setOperatorVerified({ key: currentScenarioKey, action })
+    setOperatorVerified((prev) => ({
+      key: currentScenarioKey,
+      action,
+      seq: (prev?.seq ?? 0) + 1,
+    }))
 
     try {
       const res = await fetch(`${API_BASE_URL}/api/hitl/override`, {
@@ -368,6 +375,7 @@ export function App() {
           <MaritimeMap
             scenario={scenario}
             operatorVerifiedAction={operatorVerifiedAction}
+            operatorVerifiedSeq={operatorVerifiedSeq}
           />
         </section>
         <section className="w-[35%] h-full">
